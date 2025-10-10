@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Milo Mate</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-content">
+      <div class="logo">
+<img src="icons/icon128.png" alt="My Icon" width="60" height="60">
+</div>
+      <div class="header-actions">
+        <button class="icon-btn" id="settings-btn" title="Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M12 1v6m0 6v6m0-18l-2 2m2-2l2 2m-2 16l-2-2m2 2l2-2M1 12h6m6 0h6M1 12l2-2m-2 2l2 2m16-2l2-2m-2 2l2 2"></path>
+          </svg>
+        </button>
+        <button class="icon-btn" id="close-btn" title="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <div class="nav-tabs">
+    <button class="tab active" data-tab="chat">Chat</button>
+    <button class="tab" data-tab="voice">Voice</button>
+    <button class="tab" data-tab="translate">Translate</button>
+    <button class="tab" data-tab="sentiment">Sentiment</button>
+    <button class="tab" data-tab="settings">Settings</button>
+  </div>
+
+  <!-- Tab Contents -->
+  <div class="content">
+    
+    <!-- Chat Tab -->
+    <div class="tab-content active" id="chat-content">
+      <div class="chat-container">
+        <div class="messages" id="chat-messages">
+          <div class="message assistant">
+            <div class="message-bubble">
+              <div class="message-text">Hi there! I'm Milo Mate, your autonomous support assistant. I can help you write emails, translate required content for you in your language with voice support , real time calls to customer care in any language, summarize FAQs and any other support you can think of.How can I help you today?</div>
+              <div class="message-time">10:32 AM</div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input">
+          <input type="text" placeholder="Type your message..." id="chat-input-field">
+          <button class="send-btn" id="send-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Voice Tab -->
+    <div class="tab-content" id="voice-content">
+      <div class="voice-container">
+        <div class="voice-status">
+          <p class="status-text">Ready to record. Click Start to begin transcription.</p>
+        </div>
+        <div class="voice-control">
+          <button class="record-btn" id="record-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"></path>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"></path>
+            </svg>
+            <span>Start Recording</span>
+          </button>
+        </div>
+        <div class="transcript" id="transcript">
+          <div class="transcript-item">
+            <div class="transcript-label">Customer:</div>
+            <div class="transcript-text">Hello, I'm calling about my order that hasn't arrived yet.</div>
+            <div class="transcript-time">10:32 AM</div>
+          </div>
+          <div class="transcript-item">
+            <div class="transcript-label">Agent:</div>
+            <div class="transcript-text">I'd be happy to help you with that. Could you please provide your order number?</div>
+            <div class="transcript-time">10:32 AM</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Translate Tab -->
+    <div class="tab-content" id="translate-content">
+      <div class="translate-container">
+        <div class="translate-section">
+          <label>From</label>
+          <select class="language-select" id="from-lang">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="hi">Hindi</option>
+            <option value="zh">Chinese</option>
+          </select>
+          <textarea class="translate-input" placeholder="Enter text to translate..." id="translate-input"></textarea>
+        </div>
+        <button class="swap-btn" id="swap-languages">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="17 1 21 5 17 9"></polyline>
+            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+            <polyline points="7 23 3 19 7 15"></polyline>
+            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+          </svg>
+        </button>
+        <div class="translate-section">
+          <label>To</label>
+          <select class="language-select" id="to-lang">
+            <option value="es">Spanish</option>
+            <option value="en">English</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="hi">Hindi</option>
+            <option value="zh">Chinese</option>
+          </select>
+          <div class="translate-output" id="translate-output">Translation will appear here...</div>
+        </div>
+        <button class="translate-btn" id="translate-btn">Translate</button>
+      </div>
+    </div>
+
+    <!-- Sentiment Tab -->
+    <div class="tab-content" id="sentiment-content">
+      <div class="sentiment-container">
+        <div class="sentiment-overview">
+          <div class="sentiment-card positive">
+            <div class="sentiment-icon">😊</div>
+            <div class="sentiment-label">Positive</div>
+            <div class="sentiment-count">42</div>
+          </div>
+          <div class="sentiment-card neutral">
+            <div class="sentiment-icon">😐</div>
+            <div class="sentiment-label">Neutral</div>
+            <div class="sentiment-count">28</div>
+          </div>
+          <div class="sentiment-card negative">
+            <div class="sentiment-icon">😟</div>
+            <div class="sentiment-label">Negative</div>
+            <div class="sentiment-count">15</div>
+          </div>
+        </div>
+        <div class="sentiment-analysis">
+          <label>Analyze Text Sentiment</label>
+          <textarea class="sentiment-input" placeholder="Enter customer message to analyze sentiment..." id="sentiment-input"></textarea>
+          <button class="analyze-btn" id="analyze-btn">Analyze Sentiment</button>
+          <div class="sentiment-result" id="sentiment-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div class="tab-content" id="settings-content">
+      <div class="settings-container">
+        <div class="settings-section">
+          <h3>Preferences</h3>
+          <div class="setting-item">
+            <label class="checkbox-label">
+              <input type="checkbox" id="auto-suggest">
+              <span>Auto-suggest replies</span>
+            </label>
+          </div>
+          <div class="setting-item">
+            <label class="checkbox-label">
+              <input type="checkbox" id="auto-translate">
+              <span>Auto-translate messages</span>
+            </label>
+          </div>
+          <div class="setting-item">
+            <label class="checkbox-label">
+              <input type="checkbox" id="sentiment-detection">
+              <span>Real-time sentiment detection</span>
+            </label>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>Language</h3>
+          <select class="settings-select" id="default-lang">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="hi">Hindi</option>
+            <option value="zh">Chinese</option>
+          </select>
+        </div>
+        <div class="settings-section">
+          <h3>API Configuration</h3>
+          <button class="settings-btn" id="open-options">Manage API Keys</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
