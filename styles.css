@@ -605,3 +605,23 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/*new one*/
+.message-text p {
+  margin: 4px 0;
+}
+
+.message-text code {
+  background: #2b2b2b;
+  color: #f5f5f5;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.message-text pre {
+  background: #1e1e1e;
+  padding: 8px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
