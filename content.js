@@ -129,7 +129,7 @@ function quickScrape() {
       metaTags: Object.keys(data.enhanced.meta)
     });
 
-    return {title,paras,headings,links};
+    return data;
 
   } catch (err) {
     console.error("[Enhanced Scraper ❌ Error]:", err);
