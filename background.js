@@ -252,3 +252,15 @@ setInterval(() => {
     session = null;
   }
 }, 30 * 60 * 1000); // Refresh every 30 minutes
+
+chrome.action.onClicked.addListener(async (tab) => {
+  try {
+    console.log("[BG] Injecting Milo Mate popup into page...");
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ["injectPopup.js"], // we’ll create this next
+    });
+  } catch (err) {
+    console.error("[BG] Failed to inject popup:", err);
+  }
+});

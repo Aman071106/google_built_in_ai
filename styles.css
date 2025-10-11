@@ -25,6 +25,9 @@ body {
   color: white;
   padding: 16px 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: move; /* Add this */
+  user-select: none; /* Add this */
+  -webkit-user-select: none; /* Add this */
 }
 
 .header-content {
@@ -52,7 +55,9 @@ body {
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  cursor: pointer;
+  cursor: default;
+  user-select: auto;
+  -webkit-user-select: auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -79,8 +84,10 @@ body {
   background: transparent;
   color: #6b7280;
   font-size: 14px;
-  cursor: pointer;
+  cursor: default;
   border-bottom: 2px solid transparent;
+  user-select: auto;
+  -webkit-user-select: auto;
   transition: all 0.2s;
   white-space: nowrap;
 }
@@ -624,4 +631,19 @@ body {
   padding: 8px;
   border-radius: 6px;
   overflow-x: auto;
+}
+.icon-btn, .tab, button, input, textarea, select {
+  cursor: default; /* Reset cursor for interactive elements */
+  user-select: auto;
+  -webkit-user-select: auto;
+}
+
+/* Specifically for buttons */
+.icon-btn, .tab, .send-btn, .record-btn, .translate-btn, .analyze-btn, .settings-btn {
+  cursor: pointer !important;
+}
+
+/* For input fields */
+#chat-input-field, .translate-input, .sentiment-input, textarea, input {
+  cursor: text !important;
 }
