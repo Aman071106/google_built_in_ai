@@ -562,73 +562,51 @@ function initializelivestream() {
   log('✅ Live recording initialized');
 }
 
-// Handle live transcription completion
-// async function handleAudioRecordingCompleteLive(audioBase64, mimeType) {
-//   console.log("[Popup][LiveVoice] 🎙️ Processing live recorded audio");
-//   console.log("[Popup][LiveVoice] 📊 Audio size:", audioBase64.length, "characters");
+async function handleAudioRecordingCompleteLive(audioBase64, mimeType) {
+  console.log("[Popup][LiveVoice] 🎙️ Processing recorded audio");
 
-//   try {
-//     const response = await chrome.runtime.sendMessage({
-//       type: "TRANSCRIBE_AUDIO",
-//       audioBase64: audioBase64,
-//       mimeType: mimeType,
-//       language: document.getElementById('default-lang')?.value || "en"
-//     });
+  chrome.runtime.sendMessage({
+    type: "TRANSCRIBE_AUDIO",
+    audioBase64: audioBase64,
+    mimeType: mimeType,
+    language: document.getElementById('default-lang')?.value || "en"
+  }, async (response) => {
+    console.log("[Popup][Voice] Transcription response:", response);
 
-//     console.log("[Popup][LiveVoice] 📨 Transcription response:", response);
-
-//     if (response && response.ok && response.transcript) {
-//       console.log("[Popup][LiveVoice] 📝 Transcript:", response.transcript);
-
-//       // Display transcript in meetings tab
-//       displayLiveTranscript(response.transcript);
-
-//     } else {
-//       console.error("[Popup][LiveVoice] ❌ Transcription failed:", response?.error);
-//       alert(`Transcription failed: ${response?.error || 'Unknown error'}`);
-//     }
-//   } catch (error) {
-//     console.error("[Popup][LiveVoice] ❌ Error:", error);
-//     alert(`Error processing audio: ${error.message}`);
-//   }
-// }
-
-// Display transcript in the UI
-function displayLiveTranscript(transcript) {
-  // Find or create transcript display area
-  let transcriptArea = document.getElementById('live-transcript-area');
-
-  if (!transcriptArea) {
-    // Create transcript display if it doesn't exist
-    const meetingsContent = document.getElementById('meetings-content');
-    if (meetingsContent) {
-      transcriptArea = document.createElement('div');
-      transcriptArea.id = 'live-transcript-area';
-      transcriptArea.style.cssText = `
-        margin-top: 20px;
-        padding: 15px;
-        background: #f5f5f5;
-        border-radius: 8px;
-        max-height: 300px;
-        overflow-y: auto;
-        font-family: monospace;
-      `;
-      meetingsContent.appendChild(transcriptArea);
+    if (response.ok && response.transcript) {
+      console.log("[POPUP] Response transcript", response.transcript);
+      displayLiveTranscript(response.transcript); // Display transcript in UI
+    } else {
+      window.createMessageElement(`❌ Transcription failed: ${response.error}`, "assistant");
     }
-  }
+  });
+}
 
-  if (transcriptArea) {
-    // Append new transcript with timestamp
+// Displays live transcription within the designated transcription area
+function displayLiveTranscript(transcript) {
+  // Locate the output area within the transcription container
+  const outputArea = document.getElementById('transcription-output');
+
+  if (outputArea) {
+    // Create a new transcript entry with timestamp
     const timestamp = new Date().toLocaleTimeString();
     const entry = document.createElement('div');
-    entry.style.cssText = 'margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px;';
+    entry.style.cssText = `
+      margin-bottom: 8px;
+      padding: 10px;
+      background: #ffffff;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      font-family: monospace;
+    `;
     entry.innerHTML = `<strong>${timestamp}:</strong> ${transcript}`;
-    transcriptArea.appendChild(entry);
+    outputArea.appendChild(entry);
 
-    // Scroll to bottom
-    transcriptArea.scrollTop = transcriptArea.scrollHeight;
+    // Auto-scroll to the latest entry
+    outputArea.scrollTop = outputArea.scrollHeight;
   }
 }
+
 
 async function updateRecordingState() {
   try {
@@ -664,24 +642,24 @@ async function handleAudioRecordingComplete(audioBase64, mimeType) {
     }
   });
 }
-async function handleAudioRecordingCompleteLive(audioBase64, mimeType) {
-  console.log("[Popup][LiveVoice] 🎙️ Processing recorded audio");
+// async function handleAudioRecordingCompleteLive(audioBase64, mimeType) {
+//   console.log("[Popup][LiveVoice] 🎙️ Processing recorded audio");
 
-  chrome.runtime.sendMessage({
-    type: "TRANSCRIBE_AUDIO",
-    audioBase64: audioBase64,
-    mimeType: mimeType,
-    language: document.getElementById('default-lang')?.value || "en"
-  }, async (response) => {
-    console.log("[Popup][Voice] Transcription response:", response);
+//   chrome.runtime.sendMessage({
+//     type: "TRANSCRIBE_AUDIO",
+//     audioBase64: audioBase64,
+//     mimeType: mimeType,
+//     language: document.getElementById('default-lang')?.value || "en"
+//   }, async (response) => {
+//     console.log("[Popup][Voice] Transcription response:", response);
 
-    if (response.ok && response.transcript) {
-      console.log("[POPUP] Response transcript", response.transcript);
-    } else {
-      window.createMessageElement(`❌ Transcription failed: ${response.error}`, "assistant");
-    }
-  });
-}
+//     if (response.ok && response.transcript) {
+//       console.log("[POPUP] Response transcript", response.transcript);
+//     } else {
+//       window.createMessageElement(`❌ Transcription failed: ${response.error}`, "assistant");
+//     }
+//   });
+// }
 
 async function processVoiceQuery(transcript) {
   // Status message while processing

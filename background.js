@@ -380,7 +380,7 @@ class VoiceRecordingManager {
         target: { tabId: tabId },
         files: ['content.js']
       });
-      onsole.log("[Background][LiveVoice] Inside Live start Recording");
+      console.log("[Background][LiveVoice] Inside Live start Recording");
       // Send message to content script to start recording
       const response = await chrome.tabs.sendMessage(tabId, {
         type: 'START_LIVE_RECORDING'
@@ -502,7 +502,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
         if (tabs[0]?.id) {
           voiceManager.startLiveRecording(tabs[0].id).then(sendResponse);
-        } else {  
+        } else {
           sendResponse({ success: false, error: 'No active tab found' });
         }
       });
@@ -512,10 +512,31 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
 
     case 'GET_RECORDING_STATE':
-      sendResponse({ 
-        isRecording: voiceManager.isRecording 
+      sendResponse({
+        isRecording: voiceManager.isRecording
       });
       return false;
+    case "AUDIO_RECORDING_COMPLETE":
+      console.log('[BG] Regular audio recording complete');
+      // Popup ko forward karo with same type
+      chrome.runtime.sendMessage({
+        type: "AUDIO_RECORDING_COMPLETE",
+        success: true,
+        audioBase64: msg.audioBase64,
+        mimeType: msg.mimeType
+      });
+      break;
+
+    case "AUDIO_RECORDING_COMPLETE_LIVE":
+      console.log('[BG] Live audio recording complete');
+      // Popup ko forward karo with LIVE type
+      chrome.runtime.sendMessage({
+        type: "AUDIO_RECORDING_COMPLETE_LIVE",
+        success: true,
+        audioBase64: msg.audioBase64,
+        mimeType: msg.mimeType
+      });
+      break;
     default:
       console.warn("[BG] Unknown message type:", msg.type);
       sendResponse({ ok: false, error: "Unknown message type" });
