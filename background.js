@@ -286,7 +286,8 @@ IMPORTANT INSTRUCTIONS:
 4. Keep your answer concise and directly helpful
 5. If the question is about the page structure or content, use the headings and sections from the context
 6. Do not make up or assume any information not present in the context
-7. Markdown Output  
+7. You are always provided with the links from the current page user can navigate to so if the user asks a query whose answer is not available on current page , then tell him that he can navigate to {these} relevant pages with links. Give only relevant ones.
+8. Markdown Output  
    - Use **bold** for emphasis. 
    - Use [link](https://link) for links 
    - Use bullet points for lists or key points.  
@@ -349,7 +350,7 @@ class VoiceRecordingManager {
         target: { tabId: tabId },
         files: ['content.js']
       });
-
+      console.log("[Background][Voice] Inside start Recording");
       // Send message to content script to start recording
       const response = await chrome.tabs.sendMessage(tabId, {
         type: 'START_RECORDING'
@@ -365,6 +366,36 @@ class VoiceRecordingManager {
 
     } catch (error) {
       console.error('[Background][Voice] ❌ Recording error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  async startLiveRecording(tabId) {
+    try {
+      console.log('[Background][Voice] 🎙 Starting recording via content script...');
+
+      this.activeTabId = tabId;
+
+      // Inject content script if not already injected
+      await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['content.js']
+      });
+      onsole.log("[Background][LiveVoice] Inside Live start Recording");
+      // Send message to content script to start recording
+      const response = await chrome.tabs.sendMessage(tabId, {
+        type: 'START_LIVE_RECORDING'
+      });
+
+      if (response && response.success) {
+        this.isRecording = true;
+        console.log('[Background][LiveVoice] 🟢 Recording started via content script');
+        return { success: true };
+      } else {
+        throw new Error(response?.error || 'Failed to start recording');
+      }
+
+    } catch (error) {
+      console.error('[Background][LiveVoice] ❌ Recording error:', error);
       return { success: false, error: error.message };
     }
   }
@@ -461,6 +492,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (tabs[0]?.id) {
           voiceManager.startRecording(tabs[0].id).then(sendResponse);
         } else {
+          sendResponse({ success: false, error: 'No active tab found' });
+        }
+      });
+      return true;
+    case 'START_LIVE_RECORDING':
+      // Get active tab and start recording
+      console.log("[BG] start live speech")
+      chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+        if (tabs[0]?.id) {
+          voiceManager.startLiveRecording(tabs[0].id).then(sendResponse);
+        } else {  
           sendResponse({ success: false, error: 'No active tab found' });
         }
       });

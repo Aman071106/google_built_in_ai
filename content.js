@@ -233,6 +233,70 @@ class ContentVoiceRecorder {
       return { success: false, error: error.message };
     }
   }
+  async startLiveRecording() {
+    try {
+      console.log('[Content][Voice] 🎙 Requesting live microphone access...');
+      
+      // Check if we're in a secure context
+      if (!window.isSecureContext) { 
+        throw new Error('Microphone requires secure context (HTTPS)');
+      }
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Microphone API not available in this context');
+      }
+
+      this.stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 16000
+        }
+      });
+      
+      this.recorder = new MediaRecorder(this.stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+
+      this.chunks = [];
+
+      this.recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          this.chunks.push(e.data);
+        }
+      };
+
+      this.recorder.onstop = async () => {
+        console.log('[Content][LiveVoice] 🔴 Recording stopped');
+        
+        const blob = new Blob(this.chunks, { type: 'audio/webm;codecs=opus' });
+        
+        // Convert to base64
+        const arrayBuffer = await blob.arrayBuffer();
+        const base64Audio = this.arrayBufferToBase64(arrayBuffer);
+        
+        // Send to background script
+        chrome.runtime.sendMessage({
+          type: "AUDIO_RECORDING_COMPLETE_LIVE",
+          audioBase64: base64Audio,
+          mimeType: blob.type
+        });
+
+        this.cleanup();
+      };
+
+      this.recorder.start();
+      this.isRecording = true;
+      console.log('[Content][LiveVoice] 🟢 Live Recording started');
+      
+      return { success: true };
+      
+    } catch (error) {
+      console.error('[Content][Voice] ❌ Microphone error:', error);
+      this.cleanup();
+      return { success: false, error: error.message };
+    }
+  }
 
   stopRecording() {
     if (this.recorder && this.isRecording) {
@@ -286,7 +350,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case "START_RECORDING":
       contentVoiceRecorder.startRecording().then(sendResponse);
       return true; // Keep message channel open for async response
-
+    case "START_LIVE_RECORDING":
+      console.log("content live")
+      contentVoiceRecorder.startLiveRecording().then(sendResponse);
+      return true;
     case "STOP_RECORDING":
       contentVoiceRecorder.stopRecording();
       sendResponse({ success: true });

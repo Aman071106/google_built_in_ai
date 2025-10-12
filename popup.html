@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8">
   <title>Milo Mate</title>
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body id="milo-mate-popup">
   <!-- Header -->
   <div class="header" id="milo-mate-header">
@@ -13,7 +15,7 @@
         <img src="icons/icon128.png" alt="Milo Mate" width="60" height="60">
       </div>
       <div class="header-actions">
-         
+
         <button class="icon-btn" id="close-btn" title="Close">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -27,42 +29,49 @@
   <!-- Navigation Tabs -->
   <div class="nav-tabs">
     <button class="tab active" data-tab="chat">Chat</button>
-     
+    <button class="tab" data-tab="meetings">Task Summarization</button>
     <button class="tab" data-tab="settings">Settings</button>
   </div>
 
   <!-- Tab Contents -->
   <div class="content">
-    
+
     <!-- Chat Tab -->
     <div class="tab-content active" id="chat-content">
       <div class="chat-container" id="chat-container">
         <div class="messages" id="chat-messages">
           <div class="message assistant">
             <div class="message-bubble">
-              <div class="message-text">Hi there! I'm Milo Mate, your autonomous support assistant. I can help you write emails, translate required content for you in your language with voice support, real time calls to customer care in any language, summarize FAQs and any other support you can think of. How can I help you today?</div>
+              <div class="message-text">Hi there! I'm Milo Mate, your autonomous support assistant. I can help you write
+                emails, translate required content for you in your language with voice support, real time calls to
+                customer care in any language, summarize FAQs and any other support you can think of. How can I help you
+                today?</div>
               <div class="message-time">10:32 AM</div>
             </div>
           </div>
         </div>
         <div class="chat-input">
           <input type="text" placeholder="Type your message..." id="chat-input-field">
-          
+
           <!-- 🎤 Voice input button -->
           <button class="icon-btn" id="mic-btn" title="Speak your message" style="color: black;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3s-3 1.34-3 3v6c0 1.66 1.34 3 3 3z"></path>
-              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"></path>
+              <path
+                d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z">
+              </path>
             </svg>
           </button>
-          
+
           <!-- 🔊 Voice reply button -->
           <button class="icon-btn" id="voice-reply-btn" title="Play AI Voice">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path>
+              <path
+                d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z">
+              </path>
             </svg>
           </button>
-          
+
           <button class="send-btn" id="send-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -70,14 +79,56 @@
             </svg>
           </button>
         </div>
-        
+
         <!-- Hidden audio element for TTS playback -->
         <audio id="voice-audio" controls style="display:none;"></audio>
       </div>
     </div>
 
-    <!-- Voice Tab -->
-     
+    <!-- Meetings Tab -->
+    <div class="tab-content" id="meetings-content">
+      <div class="meetings-container">
+        <div class="meetings-header">
+          <h3>Real-time Meeting Transcription</h3>
+          <p>Transcribe and summarize meetings in real-time</p>
+        </div>
+
+        <div class="meetings-controls">
+          <button class="meeting-btn primary" id="start-meeting-btn">
+            🎤 Start Meeting
+          </button>
+          <!-- <button class="meeting-btn secondary" id="stop-meeting-btn" disabled>
+            ⏹️ Stop Meeting
+          </button> -->
+          <button class="meeting-btn" id="summarize-meeting-btn" disabled>
+            📝 Summarize
+          </button>
+        </div>
+
+        <div class="meetings-status" id="meeting-status">
+          Ready to start meeting transcription
+        </div>
+
+        <div class="transcription-container">
+          <div class="transcription-header">
+            <h4>Live Transcription</h4>
+            
+          </div>
+          <div class="transcription-output" id="transcription-output">
+            <!-- Transcription will appear here -->
+          </div>
+        </div>
+
+        <div class="summary-container" id="summary-container" style="display: none;">
+          <div class="summary-header">
+            <h4>Meeting Summary</h4>
+          </div>
+          <div class="summary-output" id="summary-output">
+            <!-- Summary will appear here -->
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Translate Tab -->
     <div class="tab-content" id="translate-content">
@@ -125,12 +176,12 @@
     </div>
 
     <!-- Sentiment Tab -->
-     
+
 
     <!-- Settings Tab -->
     <div class="tab-content" id="settings-content">
       <div class="settings-container">
-         
+
         <div class="settings-section">
           <h3>Language</h3>
           <select class="settings-select" id="default-lang">
@@ -145,13 +196,13 @@
             <option value="te">Telugu</option>
           </select>
         </div>
-         
-         
+
+
         <div class="settings-section">
           <h3>About</h3>
           <div class="about-info">
             <p><strong>Milo Mate v2.0</strong></p>
-            <p>Your AI-powered support assistant with multilingual voice capabilities</p> 
+            <p>Your AI-powered support assistant with multilingual voice capabilities</p>
           </div>
         </div>
       </div>
@@ -162,8 +213,9 @@
   <!-- External Libraries -->
   <script src="libs/marked.min.js"></script>
   <script src="libs/purify.min.js"></script>
-  
+
   <!-- Main Application Script -->
   <script src="popup.js"></script>
 </body>
+
 </html>

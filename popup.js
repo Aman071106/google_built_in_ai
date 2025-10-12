@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('Got page data: ', scrapedData);
 
       const structuredText = jsonToStructuredText(scrapedData);
-      console.log('Structured text length:', structuredText.length);
+      console.log('Structured text length:', structuredText);
 
       statusMessage.querySelector('.message-text').textContent = '📚 Processing content...';
 
@@ -167,11 +167,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           .map((item, index) => `[Section ${index + 1}]\n${item.text}`)
           .join('\n\n---\n\n');
       }
-
+      context += scrapedData.links
+        .map(linkObj => `${linkObj.text || ''} (${linkObj.href || ''})`)
+        .join("; ");
       console.log(`Using ${relevantChunks.length} relevant chunks`);
 
       statusMessage.querySelector('.message-text').textContent = '🧠 Generating answer...';
-      console.log("Meta data:",processingResult.totalChunks,"\n\n\n relevant chunks: ",relevantChunks);
+      console.log("Meta data:", processingResult.totalChunks, "\n\n\n relevant chunks: ", relevantChunks);
       const res = await chrome.runtime.sendMessage({
         type: 'ASK_QUERY_WITH_CONTEXT',
         query: query,
@@ -224,15 +226,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- 3. Translation functionality ---
   const defaultLang = document.getElementById('default-lang');
-   
-   
+
+
 
   // Event listeners for translation
   defaultLang.addEventListener('change', saveUserPreferences);
-   
+
 
   // --- 4. Voice functionality ---
   initializeVoiceRecording();
+  // --- 4.2. Voice functionality for mom ---
+  initializelivestream();
 
   // --- 5. Voice reply button ---
   document.getElementById("voice-reply-btn").addEventListener("click", async () => {
@@ -279,38 +283,38 @@ function saveUserPreferences() {
 }
 
 // Translation functions
- 
 
- 
+
+
 function removeMarkdown(text) {
-    if (!text || typeof text !== 'string') return text;
+  if (!text || typeof text !== 'string') return text;
 
-    return text
-      // Remove headers
-      .replace(/^#{1,6}\s+/gm, '')
-      // Remove bold and italic
-      .replace(/(\*\*|__)(.*?)\1/g, '$2')
-      .replace(/(\*|_)(.*?)\1/g, '$2')
-      // Remove code blocks
-      .replace(/`{3}[\s\S]*?`{3}/g, '')
-      .replace(/`([^`]+)`/g, '$1')
-      // Remove images
-      .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
-      // Remove links but keep text
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      // Remove blockquotes
-      .replace(/^\s*>+\s*/gm, '')
-      // Remove horizontal rules
-      .replace(/^\s*[-*_]{3,}\s*$/gm, '')
-      // Remove lists
-      .replace(/^\s*[-*+]\s+/gm, '')
-      .replace(/^\s*\d+\.\s+/gm, '')
-      // Remove HTML tags if any
-      .replace(/<[^>]*>/g, '')
-      // Clean up extra whitespace
-      .replace(/\n\s*\n/g, '\n\n')
-      .trim();
-  }
+  return text
+    // Remove headers
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove bold and italic
+    .replace(/(\*\*|__)(.*?)\1/g, '$2')
+    .replace(/(\*|_)(.*?)\1/g, '$2')
+    // Remove code blocks
+    .replace(/`{3}[\s\S]*?`{3}/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove images
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+    // Remove links but keep text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove blockquotes
+    .replace(/^\s*>+\s*/gm, '')
+    // Remove horizontal rules
+    .replace(/^\s*[-*_]{3,}\s*$/gm, '')
+    // Remove lists
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    // Remove HTML tags if any
+    .replace(/<[^>]*>/g, '')
+    // Clean up extra whitespace
+    .replace(/\n\s*\n/g, '\n\n')
+    .trim();
+}
 // Shared function to handle AI responses from text or voice queries
 function handleAIResponse(messageEl, res) {
   if (res?.ok) {
@@ -349,6 +353,8 @@ function initializeVoiceRecording() {
 
   // Listen for messages from background
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log("Popup to rag")
+    console.log(request);
     switch (request.type) {
       case "AUDIO_RECORDING_COMPLETE":
         log('📤 Received audio from background');
@@ -356,6 +362,7 @@ function initializeVoiceRecording() {
         isRecording = false;
         updateButtonState(false);
         break;
+       
     }
   });
 
@@ -389,7 +396,7 @@ function initializeVoiceRecording() {
         type: 'STOP_RECORDING'
       });
 
-      // Note: The actual stop and audio data will come via AUDIO_RECORDING_COMPLETE message
+       
 
     } catch (error) {
       log('❌ Error stopping recording:', error);
@@ -421,6 +428,206 @@ function initializeVoiceRecording() {
 
   // Update button state on popup open
   updateRecordingState();
+}
+
+
+// live transcription mic btn
+// Voice recording functionality
+// Fixed Live Recording functionality for popup.js
+// Replace your initializelivestream() function with this:
+
+function initializelivestream() {
+  const DEBUG = true;
+  const log = (...args) => DEBUG && console.log('[Popup][LiveVoice]', ...args);
+
+  const livemicBtn = document.getElementById('start-meeting-btn');
+
+  if (!livemicBtn) {
+    log('❌ Live mic button not found');
+    return;
+  }
+
+  log('✅ Live mic button found');
+
+  let isRecording = false;
+
+  // Listen for messages from background/content
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    log('📨 Received message:', request.type);
+
+    switch (request.type) {
+      
+      case "AUDIO_RECORDING_COMPLETE_LIVE":
+        if (request.success) {
+          log('📤 Received LIVE audio from background');
+          handleAudioRecordingCompleteLive(request.audioBase64, request.mimeType);
+          isRecording = false;
+          updateLiveButtonState(false);
+        }
+        break;
+    }
+  });
+
+  async function startLiveRecording() {
+    try {
+      log('🎙 Starting live recording...');
+
+      // Update UI immediately
+      updateLiveButtonState(true);
+
+      const response = await chrome.runtime.sendMessage({
+        type: 'START_LIVE_RECORDING'
+      });
+
+      console.log('📨 Response from background:', response);
+
+      if (!response) {
+        throw new Error('No response from background script');
+      }
+
+      if (response.success) {
+        isRecording = true;
+        log('🟢 Live recording started successfully');
+      } else {
+        throw new Error(response.error || 'Failed to start live recording');
+      }
+
+    } catch (error) {
+      console.log('❌ Failed to start live recording:', error);
+      showMicrophoneError(error.message);
+      updateLiveButtonState(false);
+      isRecording = false;
+    }
+  }
+
+  async function stopLiveRecording() {
+    try {
+      log('🔴 Stopping live recording...');
+
+      const response = await chrome.runtime.sendMessage({
+        type: 'STOP_RECORDING'
+      });
+
+      log('📨 Stop response:', response);
+
+      if (response && response.success) {
+        log('✅ Recording stopped successfully');
+      }
+
+      // Update UI
+      updateLiveButtonState(false);
+      isRecording = false;
+
+    } catch (error) {
+      log('❌ Error stopping recording:', error);
+      updateLiveButtonState(false);
+      isRecording = false;
+    }
+  }
+
+  function updateLiveButtonState(recording) {
+    log('🎨 Updating button state:', recording);
+
+    if (recording) {
+      livemicBtn.style.backgroundColor = '#ff4444';
+      livemicBtn.style.color = 'white';
+      livemicBtn.innerHTML = '🛑 Stop Live Recording';
+      livemicBtn.classList.add('recording');
+    } else {
+      livemicBtn.style.backgroundColor = '';
+      livemicBtn.style.color = '';
+      livemicBtn.innerHTML = '🎙 Start Live Recording';
+      livemicBtn.classList.remove('recording');
+    }
+  }
+
+  function showMicrophoneError(message) {
+    alert(`Microphone Error: ${message}\n\nPlease ensure:\n• You're on a secure website (HTTPS)\n• Microphone permissions are allowed\n• The website allows microphone access`);
+  }
+
+  // Button click handler
+  livemicBtn.addEventListener('click', () => {
+    log('🖱️ Button clicked, current state:', isRecording);
+
+    if (!isRecording) {
+      startLiveRecording();
+    } else {
+      stopLiveRecording();
+    }
+  });
+
+  // Initialize button state
+  updateLiveButtonState(false);
+
+  log('✅ Live recording initialized');
+}
+
+// Handle live transcription completion
+// async function handleAudioRecordingCompleteLive(audioBase64, mimeType) {
+//   console.log("[Popup][LiveVoice] 🎙️ Processing live recorded audio");
+//   console.log("[Popup][LiveVoice] 📊 Audio size:", audioBase64.length, "characters");
+
+//   try {
+//     const response = await chrome.runtime.sendMessage({
+//       type: "TRANSCRIBE_AUDIO",
+//       audioBase64: audioBase64,
+//       mimeType: mimeType,
+//       language: document.getElementById('default-lang')?.value || "en"
+//     });
+
+//     console.log("[Popup][LiveVoice] 📨 Transcription response:", response);
+
+//     if (response && response.ok && response.transcript) {
+//       console.log("[Popup][LiveVoice] 📝 Transcript:", response.transcript);
+
+//       // Display transcript in meetings tab
+//       displayLiveTranscript(response.transcript);
+
+//     } else {
+//       console.error("[Popup][LiveVoice] ❌ Transcription failed:", response?.error);
+//       alert(`Transcription failed: ${response?.error || 'Unknown error'}`);
+//     }
+//   } catch (error) {
+//     console.error("[Popup][LiveVoice] ❌ Error:", error);
+//     alert(`Error processing audio: ${error.message}`);
+//   }
+// }
+
+// Display transcript in the UI
+function displayLiveTranscript(transcript) {
+  // Find or create transcript display area
+  let transcriptArea = document.getElementById('live-transcript-area');
+
+  if (!transcriptArea) {
+    // Create transcript display if it doesn't exist
+    const meetingsContent = document.getElementById('meetings-content');
+    if (meetingsContent) {
+      transcriptArea = document.createElement('div');
+      transcriptArea.id = 'live-transcript-area';
+      transcriptArea.style.cssText = `
+        margin-top: 20px;
+        padding: 15px;
+        background: #f5f5f5;
+        border-radius: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        font-family: monospace;
+      `;
+      meetingsContent.appendChild(transcriptArea);
+    }
+  }
+
+  if (transcriptArea) {
+    // Append new transcript with timestamp
+    const timestamp = new Date().toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.style.cssText = 'margin-bottom: 10px; padding: 8px; background: white; border-radius: 4px;';
+    entry.innerHTML = `<strong>${timestamp}:</strong> ${transcript}`;
+    transcriptArea.appendChild(entry);
+
+    // Scroll to bottom
+    transcriptArea.scrollTop = transcriptArea.scrollHeight;
+  }
 }
 
 async function updateRecordingState() {
@@ -457,6 +664,24 @@ async function handleAudioRecordingComplete(audioBase64, mimeType) {
     }
   });
 }
+async function handleAudioRecordingCompleteLive(audioBase64, mimeType) {
+  console.log("[Popup][LiveVoice] 🎙️ Processing recorded audio");
+
+  chrome.runtime.sendMessage({
+    type: "TRANSCRIBE_AUDIO",
+    audioBase64: audioBase64,
+    mimeType: mimeType,
+    language: document.getElementById('default-lang')?.value || "en"
+  }, async (response) => {
+    console.log("[Popup][Voice] Transcription response:", response);
+
+    if (response.ok && response.transcript) {
+      console.log("[POPUP] Response transcript", response.transcript);
+    } else {
+      window.createMessageElement(`❌ Transcription failed: ${response.error}`, "assistant");
+    }
+  });
+}
 
 async function processVoiceQuery(transcript) {
   // Status message while processing
@@ -481,32 +706,32 @@ async function processVoiceQuery(transcript) {
     const structuredText = jsonToStructuredText(scrapedData);
     thinkingMsg.querySelector('.message-text').textContent = '📚 Thinking...';
     const processingResult = await ragManager.processPageContent(
-        structuredText,
-        tab.url,
-        { title: scrapedData.title }
-      );
+      structuredText,
+      tab.url,
+      { title: scrapedData.title }
+    );
     const relevantChunks = await ragManager.retrieveRelevantChunks(transcript, tab.url, 4);
     let context;
-      if (relevantChunks.length === 0) {
-        console.log('No relevant chunks, using fallback');
-        const allChunks = await ragManager.vectorStore.getChunks(tab.url);
-        context = allChunks.slice(0, 3).map(c => c?.text).filter(Boolean).join('\n\n');
-      } else {
-        context = relevantChunks
-          .map((item, index) => `[Section ${index + 1}]\n${item.text}`)
-          .join('\n\n---\n\n');
-      }
+    if (relevantChunks.length === 0) {
+      console.log('No relevant chunks, using fallback');
+      const allChunks = await ragManager.vectorStore.getChunks(tab.url);
+      context = allChunks.slice(0, 3).map(c => c?.text).filter(Boolean).join('\n\n');
+    } else {
+      context = relevantChunks
+        .map((item, index) => `[Section ${index + 1}]\n${item.text}`)
+        .join('\n\n---\n\n');
+    }
     const res = await chrome.runtime.sendMessage({
-        type: 'ASK_QUERY_WITH_CONTEXT',
-        query: transcript,
-        context: context,
-        metadata: {
-          totalChunks: processingResult.totalChunks,
-          relevantChunks: relevantChunks.length,
-          source: tab.url,
-          title: scrapedData.title || 'Current Page'
-        }
-      });
+      type: 'ASK_QUERY_WITH_CONTEXT',
+      query: transcript,
+      context: context,
+      metadata: {
+        totalChunks: processingResult.totalChunks,
+        relevantChunks: relevantChunks.length,
+        source: tab.url,
+        title: scrapedData.title || 'Current Page'
+      }
+    });
 
     console.log("[Popup][Voice] 🤖 LLM response:", res);
     handleAIResponse(thinkingMsg, res);
@@ -1208,10 +1433,10 @@ function analyzeContentStructure(data) {
 
   if (data.paras && data.paras.length > 0) {
     const scoredParagraphs = data.paras.map((para, index) => ({
-      text: para, 
+      text: para,
       length: para.length
     }));
- 
+
     analysis.mainContent = scoredParagraphs
       .map(p => p.text);
   }
@@ -1221,7 +1446,7 @@ function analyzeContentStructure(data) {
   }
 
   if (data.links && data.links.length > 0) {
-    analysis.importantLinks = data.links 
+    analysis.importantLinks = data.links
       .filter(link => !isNavigationLink(link.text));
   }
 
@@ -1341,3 +1566,23 @@ function createMetadataSummary(data) {
 
 // Initialize embedding cache
 EmbeddingTextProcessor.embeddingCache = new Map();
+
+
+
+// //  Mom feature functions
+// function stream_from_web(){
+//   // Take live stream buffer from popup.html meetings tab and convert to format for transcription
+
+// }
+// function deepgram_transcription(){
+//   // Do live transcription and  display on screen
+// }
+// //summarize button
+// function summarize_mom(){
+
+// }
+
+
+
+
+
