@@ -160,16 +160,140 @@ function quickScrape() {
     }
   }
 }
-// Listener is now UNCOMMENTED to receive messages from popup.js
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === "SCRAPE_PAGE") {
+// Content script for microphone access
+class ContentVoiceRecorder {
+  constructor() {
+    this.recorder = null;
+    this.stream = null;
+    this.chunks = [];
+    this.isRecording = false;
+  }
+
+  async startRecording() {
     try {
-      const data = quickScrape();
-      sendResponse({ ok: true, data });
-    } catch (err) {
-      console.error("[Scraper ❌ Failed to scrape]:", err);
-      sendResponse({ ok: false, error: err.message });
+      console.log('[Content][Voice] 🎙 Requesting microphone access...');
+      
+      // Check if we're in a secure context
+      if (!window.isSecureContext) {
+        throw new Error('Microphone requires secure context (HTTPS)');
+      }
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Microphone API not available in this context');
+      }
+
+      this.stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 16000
+        }
+      });
+      
+      this.recorder = new MediaRecorder(this.stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+
+      this.chunks = [];
+
+      this.recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          this.chunks.push(e.data);
+        }
+      };
+
+      this.recorder.onstop = async () => {
+        console.log('[Content][Voice] 🔴 Recording stopped');
+        
+        const blob = new Blob(this.chunks, { type: 'audio/webm;codecs=opus' });
+        
+        // Convert to base64
+        const arrayBuffer = await blob.arrayBuffer();
+        const base64Audio = this.arrayBufferToBase64(arrayBuffer);
+        
+        // Send to background script
+        chrome.runtime.sendMessage({
+          type: "AUDIO_RECORDING_COMPLETE",
+          audioBase64: base64Audio,
+          mimeType: blob.type
+        });
+
+        this.cleanup();
+      };
+
+      this.recorder.start();
+      this.isRecording = true;
+      console.log('[Content][Voice] 🟢 Recording started');
+      
+      return { success: true };
+      
+    } catch (error) {
+      console.error('[Content][Voice] ❌ Microphone error:', error);
+      this.cleanup();
+      return { success: false, error: error.message };
     }
   }
-  return true;
+
+  stopRecording() {
+    if (this.recorder && this.isRecording) {
+      this.recorder.stop();
+      this.isRecording = false;
+    }
+  }
+
+  cleanup() {
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.stream = null;
+    }
+    this.recorder = null;
+    this.chunks = [];
+    this.isRecording = false;
+  }
+
+  arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 0x8000;
+    
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+    
+    return btoa(binary);
+  }
+}
+
+// Initialize content voice recorder
+const contentVoiceRecorder = new ContentVoiceRecorder();
+
+// Listener to receive messages from popup.js and background.js
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  console.log('[Content] Received message:', msg.type);
+
+  switch (msg.type) {
+    case "SCRAPE_PAGE":
+      try {
+        const data = quickScrape();
+        sendResponse({ ok: true, data });
+      } catch (err) {
+        console.error("[Scraper ❌ Failed to scrape]:", err);
+        sendResponse({ ok: false, error: err.message });
+      }
+      return true; // Keep message channel open for async response
+
+    case "START_RECORDING":
+      contentVoiceRecorder.startRecording().then(sendResponse);
+      return true; // Keep message channel open for async response
+
+    case "STOP_RECORDING":
+      contentVoiceRecorder.stopRecording();
+      sendResponse({ success: true });
+      return false; // No async response needed
+
+    default:
+      console.warn('[Content] Unknown message type:', msg.type);
+      return false;
+  }
 });

@@ -7,10 +7,15 @@
     "storage",
     "activeTab", 
     "scripting",
-    "tabs"
+    "tabs",
+    "contentSettings"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://*/*",
+    "http://*/*"
+  ],
+  "optional_permissions": [
+    "audioCapture"
   ],
   "action": {
     "default_icon": {

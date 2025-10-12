@@ -1,5 +1,10 @@
-// popup.js (Milo Mate AI Assistant)
-document.addEventListener('DOMContentLoaded', () => {
+// popup.js (Milo Mate AI Assistant - Complete Version)
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Initialize language detector first
+  await initLanguageDetector();
+  loadUserPreferences();
+
   // --- 1. Tab switching logic ---
   const tabs = document.querySelectorAll('.tab');
   const tabContents = document.querySelectorAll('.tab-content');
@@ -19,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // --- 2. Chat logic with Optimized RAG ---
+  // --- 2. Chat logic ---
   const chatInputField = document.getElementById('chat-input-field');
   const sendButton = document.getElementById('send-btn');
   const chatMessages = document.getElementById('chat-messages');
@@ -27,481 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEBUG = true;
   const log = (...args) => DEBUG && console.log('[Popup]', ...args);
 
-  // Simple Vector Store with optimized storage
-  class SimpleVectorStore {
-    constructor() {
-      this.dbName = 'MiloMateVectors';
-      this.storeName = 'chunks';
-      this.db = null;
-    }
-
-    async init() {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open(this.dbName, 2);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-          this.db = request.result;
-          resolve(this.db);
-        };
-
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-          if (!db.objectStoreNames.contains(this.storeName)) {
-            const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
-            store.createIndex('url', 'url', { unique: false });
-            store.createIndex('timestamp', 'timestamp', { unique: false });
-          }
-        };
-      });
-    }
-
-    async storeChunks(url, chunks) {
-      if (!this.db) await this.init();
-
-      const transaction = this.db.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
-
-      // Clear existing chunks for this URL
-      const clearRequest = store.index('url').openCursor(IDBKeyRange.only(url));
-      return new Promise((resolve, reject) => {
-        clearRequest.onsuccess = () => {
-          const cursor = clearRequest.result;
-          if (cursor) {
-            store.delete(cursor.primaryKey);
-            cursor.continue();
-          } else {
-            // Store new chunks
-            const timestamp = Date.now();
-            const operations = chunks.map((chunk, index) => ({
-              id: `${url}_${timestamp}_${index}`,
-              url,
-              text: chunk.text,
-              tokens: chunk.tokens || [],
-              metadata: chunk.metadata,
-              timestamp
-            }));
-
-            operations.forEach(op => store.add(op));
-
-            transaction.oncomplete = () => resolve(operations.length);
-            transaction.onerror = () => reject(transaction.error);
-          }
-        };
-      });
-    }
-
-    async getChunks(url) {
-      if (!this.db) await this.init();
-
-      const transaction = this.db.transaction([this.storeName], 'readonly');
-      const store = transaction.objectStore(this.storeName);
-      const request = store.index('url').getAll(IDBKeyRange.only(url));
-
-      return new Promise((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
-      });
-    }
-  }
-
-  // Optimized Text Processor
-  class OptimizedTextProcessor {
-    // Improved chunking with better boundaries
-    static chunkText(text, chunkSize = 400, overlap = 50) {
-      if (!text) return [];
-
-      // Split into paragraphs first for better semantic boundaries
-      const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-      const chunks = [];
-
-      for (const paragraph of paragraphs) {
-        if (paragraph.length <= chunkSize) {
-          chunks.push(paragraph.trim());
-        } else {
-          // Split long paragraphs into sentences
-          const sentences = paragraph.split(/(?<=[.!?])\s+/);
-          let currentChunk = '';
-
-          for (const sentence of sentences) {
-            if ((currentChunk + sentence).length <= chunkSize) {
-              currentChunk += (currentChunk ? ' ' : '') + sentence;
-            } else {
-              if (currentChunk) chunks.push(currentChunk.trim());
-              currentChunk = sentence;
-            }
-          }
-          if (currentChunk) chunks.push(currentChunk.trim());
-        }
-      }
-
-      return chunks.filter(chunk => chunk.length > 10); // Filter very short chunks
-    }
-
-    // Simple but effective token-based similarity (faster than embeddings)
-    static getQueryTokens(query) {
-      return query.toLowerCase()
-        .replace(/[^\w\s]/g, ' ')
-        .split(/\s+/)
-        .filter(word => word.length > 2)
-        .filter(word => !this.stopWords.has(word));
-    }
-
-    static getTextTokens(text) {
-      return text.toLowerCase()
-        .replace(/[^\w\s]/g, ' ')
-        .split(/\s+/)
-        .filter(word => word.length > 2)
-        .filter(word => !this.stopWords.has(word));
-    }
-
-    // BM25-like scoring (simplified)
-    static calculateRelevanceScore(queryTokens, textTokens, text) {
-      if (queryTokens.length === 0 || textTokens.length === 0) return 0;
-
-      const queryTokenSet = new Set(queryTokens);
-      const textTokenSet = new Set(textTokens);
-
-      // Calculate term frequency and intersection
-      let score = 0;
-      let matches = 0;
-
-      for (const token of queryTokenSet) {
-        if (textTokenSet.has(token)) {
-          matches++;
-          // Simple term frequency in the text
-          const termFrequency = textTokens.filter(t => t === token).length;
-          score += termFrequency;
-        }
-      }
-
-      // Boost score based on match ratio and position
-      const matchRatio = matches / queryTokenSet.size;
-      const lengthRatio = Math.min(textTokens.length / 100, 1); // Prefer medium-length chunks
-
-      return (score * matchRatio * lengthRatio) / (1 + Math.abs(textTokens.length - 80));
-    }
-
-    // Common stop words to filter out
-    static stopWords = new Set([
-      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-      'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
-      'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they',
-      'my', 'your', 'his', 'her', 'its', 'our', 'their'
-    ]);
-  }
-
-  // Efficient RAG Manager
-  class EfficientRAGManager {
-    constructor() {
-      this.vectorStore = new SimpleVectorStore();
-    }
-
-    async processPageContent(structuredText, url, metadata = {}) {
-      console.log('🚀 Processing page content...');
-
-      // Step 1: Chunk the text
-      const textChunks = OptimizedTextProcessor.chunkText(structuredText, 400, 50);
-      console.log(`📦 Created ${textChunks.length} chunks`);
-
-      // Step 2: Precompute tokens for faster retrieval
-      const chunksWithTokens = textChunks.map((text, index) => ({
-        text,
-        tokens: OptimizedTextProcessor.getTextTokens(text),
-        metadata: {
-          chunkIndex: index,
-          totalChunks: textChunks.length,
-          chunkLength: text.length,
-          ...metadata
-        }
-      }));
-
-      // Step 3: Store in database
-      const storedCount = await this.vectorStore.storeChunks(url, chunksWithTokens);
-      console.log(`💾 Stored ${storedCount} chunks for ${url}`);
-
-      return {
-        totalChunks: textChunks.length,
-        url
-      };
-    }
-
-    async retrieveRelevantChunks(query, url, topK = 4) {
-      console.log(`🎯 Retrieving chunks for: "${query}"`);
-
-      // Get all chunks for this URL
-      const storedChunks = await this.vectorStore.getChunks(url);
-      if (storedChunks.length === 0) {
-        console.log('❌ No chunks found for URL');
-        return [];
-      }
-
-      // Precompute query tokens once
-      const queryTokens = OptimizedTextProcessor.getQueryTokens(query);
-
-      // Score all chunks
-      const scoredChunks = storedChunks.map(chunk => {
-        const score = OptimizedTextProcessor.calculateRelevanceScore(
-          queryTokens,
-          chunk.tokens,
-          chunk.text
-        );
-
-        return {
-          text: chunk.text,
-          score,
-          metadata: chunk.metadata
-        };
-      });
-
-      // Sort by score and get top K
-      scoredChunks.sort((a, b) => b.score - a.score);
-
-      const relevantChunks = scoredChunks
-        .slice(0, topK)
-        .filter(item => item.score > 0.1);
-
-      console.log(`✅ Found ${relevantChunks.length} relevant chunks`);
-
-      return relevantChunks;
-    }
-  }
-
   // Initialize RAG Manager
-  const ragManager = new EfficientRAGManager();
+  const ragManager = new EnhancedRAGManager();
 
-  // Convert JSON to structured text
-  function jsonToStructuredText(data) {
-    if (!data) return "No data available";
-
-    const sections = [];
-
-    // 1. Title (always include if available)
-    if (data.title) {
-      sections.push(`# ${data.title}`);
-    }
-
-    // 2. Auto-detect and structure main content sections
-    const structuredContent = autoStructureContent(data);
-    sections.push(...structuredContent);
-
-    // 3. Metadata summary at the end
-    sections.push(createMetadataSummary(data));
-
-    return sections.join('\n\n');
-  }
-
-  function autoStructureContent(data) {
-    const sections = [];
-
-    // Analyze content to find natural sections
-    const contentAnalysis = analyzeContentStructure(data);
-
-    // Main content section
-    if (contentAnalysis.mainContent.length > 0) {
-      sections.push('## Main Content');
-      sections.push(...contentAnalysis.mainContent.slice(0, 8)); // Top 8 most important paragraphs
-    }
-
-    // Key topics identified from headings
-    if (contentAnalysis.keyTopics.length > 0) {
-      sections.push('## Key Topics');
-      sections.push(contentAnalysis.keyTopics.map(topic => `- ${topic}`).join('\n'));
-    }
-
-    // Detailed sections if available
-    if (contentAnalysis.detailedSections.length > 0) {
-      sections.push('## Detailed Information');
-      contentAnalysis.detailedSections.forEach((section, index) => {
-        if (index < 5) { // Limit to 5 detailed sections
-          sections.push(`### ${section.heading || `Section ${index + 1}`}`);
-          sections.push(section.content);
-        }
-      });
-    }
-
-    // Important links
-    if (contentAnalysis.importantLinks.length > 0) {
-      sections.push('## Related Resources');
-      sections.push(contentAnalysis.importantLinks.map(link =>
-        `- [${link.text}](${link.href})`
-      ).join('\n'));
-    }
-
-    return sections;
-  }
-
-  function analyzeContentStructure(data) {
-    const analysis = {
-      mainContent: [],
-      keyTopics: [],
-      detailedSections: [],
-      importantLinks: []
-    };
-
-    // Analyze headings to identify key topics
-    if (data.headings && data.headings.length > 0) {
-      // Group headings by level and importance
-      const headingGroups = groupHeadingsByImportance(data.headings);
-      analysis.keyTopics = headingGroups.mainTopics.slice(0, 10);
-    }
-
-    // Analyze paragraphs for main content
-    if (data.paras && data.paras.length > 0) {
-      // Score paragraphs by importance (length, position, content)
-      const scoredParagraphs = data.paras.map((para, index) => ({
-        text: para,
-        score: calculateParagraphScore(para, index, data.paras.length),
-        length: para.length
-      }));
-
-      // Sort by score and take most important ones
-      scoredParagraphs.sort((a, b) => b.score - a.score);
-      analysis.mainContent = scoredParagraphs
-        .filter(p => p.score > 0 && p.length > 0)
-        .slice(0, 15)
-        .map(p => p.text);
-    }
-
-    // Create detailed sections from heading-paragraph relationships
-    if (data.headings && data.paras) {
-      analysis.detailedSections = createHeadingContentPairs(data.headings, data.paras);
-    }
-
-    // Analyze links for importance
-    if (data.links && data.links.length > 0) {
-      analysis.importantLinks = data.links
-        .filter(link => link.text && link.text.length > 5)
-        .filter(link => !isNavigationLink(link.text))
-        .slice(0, 8);
-    }
-
-    return analysis;
-  }
-
-  function groupHeadingsByImportance(headings) {
-    const mainTopics = [];
-    const subTopics = [];
-
-    headings.forEach(heading => {
-      const text = typeof heading === 'string' ? heading : heading.text || heading;
-      if (!text) return;
-
-      const words = text.split(/\s+/).length;
-      const hasImportantKeywords = /^(what|how|why|when|where|guide|tutorial|introduction|about)/i.test(text);
-
-      if (words <= 8 && hasImportantKeywords) {
-        mainTopics.push(text);
-      } else if (words <= 12) {
-        subTopics.push(text);
-      }
-    });
-
-    return { mainTopics, subTopics };
-  }
-
-  function calculateParagraphScore(paragraph, index, totalParagraphs) {
-    let score = 0;
-
-    // Length score (medium-length paragraphs are often most important)
-    const lengthScore = Math.min(paragraph.length / 500, 1);
-    score += lengthScore * 0.4;
-
-    // Position score (first and early paragraphs often contain key info)
-    const positionScore = 1 - (index / totalParagraphs);
-    score += positionScore * 0.3;
-
-    // Content quality score
-    const hasQuestions = /\?/.test(paragraph);
-    const hasKeywords = /(important|key|main|primary|essential|crucial)/i.test(paragraph);
-    const sentenceCount = (paragraph.match(/[.!?]+/g) || []).length;
-    const sentenceComplexity = Math.min(sentenceCount / 5, 1);
-
-    score += (hasQuestions ? 0.1 : 0);
-    score += (hasKeywords ? 0.1 : 0);
-    score += sentenceComplexity * 0.1;
-
-    return Math.min(score, 1);
-  }
-
-  function createHeadingContentPairs(headings, paragraphs) {
-    const sections = [];
-
-    // Simple algorithm: pair headings with following paragraphs
-    let currentHeading = null;
-    let currentContent = [];
-
-    // Convert all to strings for simplicity
-    const headingTexts = headings.map(h => typeof h === 'string' ? h : h.text || '');
-    const paragraphTexts = paragraphs.map(p => typeof p === 'string' ? p : p);
-
-    // For each paragraph, check if it's likely related to a heading
-    paragraphTexts.forEach((paragraph, index) => {
-      // If this paragraph is short and looks like a subheading, treat it as such
-      if (paragraph.length < 100 && /^[A-Z][^.!?]*$/.test(paragraph)) {
-        if (currentHeading && currentContent.length > 0) {
-          sections.push({
-            heading: currentHeading,
-            content: currentContent.join(' ')
-          });
-        }
-        currentHeading = paragraph;
-        currentContent = [];
-      }
-      // Otherwise, accumulate content under current heading
-      else if (currentHeading) {
-        currentContent.push(paragraph);
-      }
-      // If no current heading, use the first main heading we find
-      else if (headingTexts.length > 0 && index < 3) {
-        currentHeading = headingTexts[0];
-        currentContent.push(paragraph);
-      }
-    });
-
-    // Add the last section
-    if (currentHeading && currentContent.length > 0) {
-      sections.push({
-        heading: currentHeading,
-        content: currentContent.join(' ')
-      });
-    }
-
-    return sections.slice(0, 10); // Limit to 10 sections
-  }
-
-  function isNavigationLink(linkText) {
-    const navKeywords = [
-      'home', 'about', 'contact', 'login', 'sign up', 'register', 'menu',
-      'search', 'help', 'support', 'privacy', 'terms', 'cookie'
-    ];
-    const lowerText = linkText.toLowerCase();
-    return navKeywords.some(keyword => lowerText.includes(keyword));
-  }
-
-  function createMetadataSummary(data) {
-    const summary = [];
-
-    summary.push('## Page Summary');
-
-    if (data.enhanced?.meta?.description) {
-      summary.push(`**Description:** ${data.enhanced.meta.description}`);
-    }
-
-    if (data.enhanced?.contentStats) {
-      const stats = data.enhanced.contentStats;
-      summary.push(`**Content Stats:** ${stats.totalParagraphs} paragraphs, ${stats.totalHeadings} headings`);
-    }
-
-    if (data.enhanced?.linkAnalysis) {
-      const links = data.enhanced.linkAnalysis;
-      summary.push(`**Links:** ${links.internal} internal, ${links.external} external`);
-    }
-
-    return summary.join('\n');
-  }
-
-
+  // Message creation function
   const createMessageElement = (text, type) => {
     const messageElement = document.createElement('div');
     messageElement.classList.add('message', type);
@@ -511,7 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const textElement = document.createElement('div');
     textElement.classList.add('message-text');
-    textElement.textContent = text;
+
+    // Check if text contains HTML tags
+    if (/<[a-z][\s\S]*>/i.test(text)) {
+      textElement.innerHTML = DOMPurify.sanitize(marked.parse(text));
+    } else {
+      textElement.textContent = text;
+    }
 
     const timeElement = document.createElement('div');
     timeElement.classList.add('message-time');
@@ -526,7 +66,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return messageElement;
   };
 
-  // Helper to send message to content script
+  // Make it globally available
+  window.createMessageElement = createMessageElement;
+
+  // Send to content script helper
   const sendToContentScript = async (tabId, message) => {
     try {
       return await chrome.tabs.sendMessage(tabId, message);
@@ -544,7 +87,36 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   };
+  function removeMarkdown(text) {
+    if (!text || typeof text !== 'string') return text;
 
+    return text
+      // Remove headers
+      .replace(/^#{1,6}\s+/gm, '')
+      // Remove bold and italic
+      .replace(/(\*\*|__)(.*?)\1/g, '$2')
+      .replace(/(\*|_)(.*?)\1/g, '$2')
+      // Remove code blocks
+      .replace(/`{3}[\s\S]*?`{3}/g, '')
+      .replace(/`([^`]+)`/g, '$1')
+      // Remove images
+      .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+      // Remove links but keep text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // Remove blockquotes
+      .replace(/^\s*>+\s*/gm, '')
+      // Remove horizontal rules
+      .replace(/^\s*[-*_]{3,}\s*$/gm, '')
+      // Remove lists
+      .replace(/^\s*[-*+]\s+/gm, '')
+      .replace(/^\s*\d+\.\s+/gm, '')
+      // Remove HTML tags if any
+      .replace(/<[^>]*>/g, '')
+      // Clean up extra whitespace
+      .replace(/\n\s*\n/g, '\n\n')
+      .trim();
+  }
+  // Main send handler
   const handleSend = async () => {
     const query = chatInputField.value.trim();
     if (!query) return;
@@ -560,7 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       console.log('Scraping tab:', tab.url);
 
-      // Scrape page content
       const scrapedRes = await sendToContentScript(tab.id, { type: 'SCRAPE_PAGE' });
 
       if (!scrapedRes?.ok) {
@@ -571,11 +142,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const scrapedData = scrapedRes.data;
       console.log('Got page data: ', scrapedData);
 
-      // Convert to structured text
       const structuredText = jsonToStructuredText(scrapedData);
-      console.log('Structured text length:', structuredText);
+      console.log('Structured text length:', structuredText.length);
 
-      // RAG Processing
       statusMessage.querySelector('.message-text').textContent = '📚 Processing content...';
 
       const processingResult = await ragManager.processPageContent(
@@ -591,9 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
       let context;
       if (relevantChunks.length === 0) {
         console.log('No relevant chunks, using fallback');
-        // Fallback: use first few chunks
         const allChunks = await ragManager.vectorStore.getChunks(tab.url);
-        context = allChunks.slice(0, 3).map(c => c.text).join('\n\n');
+        context = allChunks.slice(0, 3).map(c => c?.text).filter(Boolean).join('\n\n');
       } else {
         context = relevantChunks
           .map((item, index) => `[Section ${index + 1}]\n${item.text}`)
@@ -602,9 +170,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       console.log(`Using ${relevantChunks.length} relevant chunks`);
 
-      // Send to AI
       statusMessage.querySelector('.message-text').textContent = '🧠 Generating answer...';
-
+      console.log("Meta data:",processingResult.totalChunks,"\n\n\n relevant chunks: ",relevantChunks);
       const res = await chrome.runtime.sendMessage({
         type: 'ASK_QUERY_WITH_CONTEXT',
         query: query,
@@ -618,19 +185,21 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (res?.ok) {
-        let answer = res.answer;
+        const answer = res.answer;
+        const cleananswer = removeMarkdown(answer);
 
-        // Optional: include metadata info
-        // if (res.ragMetadata) {
-        //   answer += `\n\n---\n*Generated using ${res.ragMetadata.chunksUsed} relevant sections*`;
-        // }
+        const messageText = statusMessage.querySelector('.message-text');
 
-        // ✅ Convert Markdown → HTML
-        const htmlAnswer = DOMPurify.sanitize(marked.parse(answer));
+        // Check if answer contains markdown
+        if (answer.includes('**') || answer.includes('*') || answer.includes('#')) {
+          messageText.innerHTML = DOMPurify.sanitize(marked.parse(answer));
+        } else {
+          messageText.textContent = answer;
+        }
 
-        // ✅ Render Markdown safely
-        const messageDiv = statusMessage.querySelector('.message-text');
-        messageDiv.innerHTML = htmlAnswer;
+        // Store and optionally play via Deepgram
+        window.latestAIResponse = answer;
+        speakTextWithDeepgram(cleananswer);
 
         console.log('✅ Answer received');
       } else {
@@ -644,6 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Event listeners for chat
   sendButton.addEventListener('click', handleSend);
   chatInputField.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -651,53 +221,1123 @@ document.addEventListener('DOMContentLoaded', () => {
       handleSend();
     }
   });
-});
-document.getElementById("close-btn").addEventListener("click", () => {
-  window.parent.postMessage("close-milo-popup", "*");
-});
-// Add this drag functionality at the end of popup.js
 
-// Make the popup draggable
-dragElement(document.getElementById("milo-mate-popup"));
+  // --- 3. Translation functionality ---
+  const defaultLang = document.getElementById('default-lang');
+   
+   
 
-function dragElement(elmnt) {
-  var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-  
-  // Use the header as the drag handle
-  if (document.getElementById("milo-mate-header")) {
-    document.getElementById("milo-mate-header").onmousedown = dragMouseDown;
+  // Event listeners for translation
+  defaultLang.addEventListener('change', saveUserPreferences);
+   
+
+  // --- 4. Voice functionality ---
+  initializeVoiceRecording();
+
+  // --- 5. Voice reply button ---
+  document.getElementById("voice-reply-btn").addEventListener("click", async () => {
+    if (!window.latestAIResponse) {
+      alert("No AI response to speak yet!");
+      return;
+    }
+    await speakTextWithDeepgram(window.latestAIResponse);
+  });
+
+  // --- 6. Close button functionality ---
+  const closeBtn = document.getElementById("close-btn");
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      window.parent.postMessage("close-milo-popup", "*");
+    });
+  }
+
+  // --- 7. Make the popup draggable ---
+  const popup = document.getElementById("milo-mate-popup");
+  if (popup) {
+    dragElement(popup);
+  }
+});
+
+// =====================
+// UTILITY FUNCTIONS
+// =====================
+
+// User preferences
+function loadUserPreferences() {
+  chrome.storage.local.get(['userLanguage'], (result) => {
+    if (result.userLanguage) {
+      document.getElementById('default-lang').value = result.userLanguage;
+    }
+  });
+}
+
+function saveUserPreferences() {
+  const preferences = {
+    userLanguage: document.getElementById('default-lang').value
+  };
+  chrome.storage.local.set(preferences);
+}
+
+// Translation functions
+ 
+
+ 
+function removeMarkdown(text) {
+    if (!text || typeof text !== 'string') return text;
+
+    return text
+      // Remove headers
+      .replace(/^#{1,6}\s+/gm, '')
+      // Remove bold and italic
+      .replace(/(\*\*|__)(.*?)\1/g, '$2')
+      .replace(/(\*|_)(.*?)\1/g, '$2')
+      // Remove code blocks
+      .replace(/`{3}[\s\S]*?`{3}/g, '')
+      .replace(/`([^`]+)`/g, '$1')
+      // Remove images
+      .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+      // Remove links but keep text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // Remove blockquotes
+      .replace(/^\s*>+\s*/gm, '')
+      // Remove horizontal rules
+      .replace(/^\s*[-*_]{3,}\s*$/gm, '')
+      // Remove lists
+      .replace(/^\s*[-*+]\s+/gm, '')
+      .replace(/^\s*\d+\.\s+/gm, '')
+      // Remove HTML tags if any
+      .replace(/<[^>]*>/g, '')
+      // Clean up extra whitespace
+      .replace(/\n\s*\n/g, '\n\n')
+      .trim();
+  }
+// Shared function to handle AI responses from text or voice queries
+function handleAIResponse(messageEl, res) {
+  if (res?.ok) {
+    const answer = res.answer;
+    const messageText = messageEl.querySelector(".message-text");
+
+    // Check if answer contains markdown
+    if (answer.includes('**') || answer.includes('*') || answer.includes('#')) {
+      messageText.innerHTML = DOMPurify.sanitize(marked.parse(answer));
+    } else {
+      messageText.textContent = answer;
+    }
+
+    // Store and optionally play via Deepgram
+    window.latestAIResponse = answer;
+    const cleananswer = removeMarkdown(answer);
+    speakTextWithDeepgram(cleananswer);
   } else {
-    // otherwise, move the DIV from anywhere inside the DIV:
+    messageEl.querySelector(".message-text").textContent =
+      `❌ ${res?.error || "Unknown background error"}`;
+  }
+}
+
+// Voice recording functionality
+function initializeVoiceRecording() {
+  const DEBUG = true;
+  const log = (...args) => DEBUG && console.log('[Popup][Voice]', ...args);
+
+  const micBtn = document.getElementById('mic-btn');
+  if (!micBtn) {
+    log('❌ mic button not found');
+    return;
+  }
+
+  let isRecording = false;
+
+  // Listen for messages from background
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    switch (request.type) {
+      case "AUDIO_RECORDING_COMPLETE":
+        log('📤 Received audio from background');
+        handleAudioRecordingComplete(request.audioBase64, request.mimeType);
+        isRecording = false;
+        updateButtonState(false);
+        break;
+    }
+  });
+
+  async function startRecording() {
+    try {
+      log('🎙 Starting recording...');
+
+      const response = await chrome.runtime.sendMessage({
+        type: 'START_RECORDING'
+      });
+
+      if (response.success) {
+        isRecording = true;
+        updateButtonState(true);
+        log('🟢 Recording started successfully');
+      } else {
+        throw new Error(response.error || 'Failed to start recording');
+      }
+    } catch (error) {
+      log('❌ Failed to start recording:', error);
+      showMicrophoneError(error.message);
+      updateButtonState(false);
+    }
+  }
+
+  async function stopRecording() {
+    try {
+      log('🔴 Stopping recording...');
+
+      await chrome.runtime.sendMessage({
+        type: 'STOP_RECORDING'
+      });
+
+      // Note: The actual stop and audio data will come via AUDIO_RECORDING_COMPLETE message
+
+    } catch (error) {
+      log('❌ Error stopping recording:', error);
+      updateButtonState(false);
+    }
+  }
+
+  function updateButtonState(recording) {
+    if (recording) {
+      micBtn.style.color = 'red';
+      micBtn.innerHTML = '🛑 Stop Recording';
+    } else {
+      micBtn.style.color = '';
+      micBtn.innerHTML = '🎙 Start Recording';
+    }
+  }
+
+  function showMicrophoneError(message) {
+    alert(`Microphone Error: ${message}\n\nPlease ensure:\n• You're on a secure website (HTTPS)\n• Microphone permissions are allowed\n• The website allows microphone access`);
+  }
+
+  micBtn.addEventListener('click', () => {
+    if (!isRecording) {
+      startRecording();
+    } else {
+      stopRecording();
+    }
+  });
+
+  // Update button state on popup open
+  updateRecordingState();
+}
+
+async function updateRecordingState() {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'GET_RECORDING_STATE'
+    });
+
+    if (response.isRecording) {
+      updateButtonState(true);
+    }
+  } catch (error) {
+    console.log('[Popup][Voice] Could not get recording state:', error);
+  }
+}
+
+// Your existing handleAudioRecordingComplete function remains the same
+async function handleAudioRecordingComplete(audioBase64, mimeType) {
+  console.log("[Popup][Voice] 🎙️ Processing recorded audio");
+
+  chrome.runtime.sendMessage({
+    type: "TRANSCRIBE_AUDIO",
+    audioBase64: audioBase64,
+    mimeType: mimeType,
+    language: document.getElementById('default-lang')?.value || "en"
+  }, async (response) => {
+    console.log("[Popup][Voice] Transcription response:", response);
+
+    if (response.ok && response.transcript) {
+      window.createMessageElement(response.transcript, "user");
+      await processVoiceQuery(response.transcript);
+    } else {
+      window.createMessageElement(`❌ Transcription failed: ${response.error}`, "assistant");
+    }
+  });
+}
+
+async function processVoiceQuery(transcript) {
+  // Status message while processing
+  const thinkingMsg = window.createMessageElement("🔍 Scraping current page...", "assistant");
+  const ragManager = new EnhancedRAGManager();
+  try {
+    // Get current tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) throw new Error("No active tab found.");
+
+    // Ask content.js to scrape
+    const scrapedRes = await chrome.tabs.sendMessage(tab.id, { type: "SCRAPE_PAGE" });
+    console.log("[Popup][Voice] 📄 Scrape response:", scrapedRes);
+
+    if (!scrapedRes?.ok) {
+      thinkingMsg.querySelector(".message-text").textContent = "❌ Failed to scrape page.";
+      return;
+    }
+
+    // Send transcript as query to LLM
+    const scrapedData = scrapedRes.data;
+    const structuredText = jsonToStructuredText(scrapedData);
+    thinkingMsg.querySelector('.message-text').textContent = '📚 Thinking...';
+    const processingResult = await ragManager.processPageContent(
+        structuredText,
+        tab.url,
+        { title: scrapedData.title }
+      );
+    const relevantChunks = await ragManager.retrieveRelevantChunks(transcript, tab.url, 4);
+    let context;
+      if (relevantChunks.length === 0) {
+        console.log('No relevant chunks, using fallback');
+        const allChunks = await ragManager.vectorStore.getChunks(tab.url);
+        context = allChunks.slice(0, 3).map(c => c?.text).filter(Boolean).join('\n\n');
+      } else {
+        context = relevantChunks
+          .map((item, index) => `[Section ${index + 1}]\n${item.text}`)
+          .join('\n\n---\n\n');
+      }
+    const res = await chrome.runtime.sendMessage({
+        type: 'ASK_QUERY_WITH_CONTEXT',
+        query: transcript,
+        context: context,
+        metadata: {
+          totalChunks: processingResult.totalChunks,
+          relevantChunks: relevantChunks.length,
+          source: tab.url,
+          title: scrapedData.title || 'Current Page'
+        }
+      });
+
+    console.log("[Popup][Voice] 🤖 LLM response:", res);
+    handleAIResponse(thinkingMsg, res);
+
+  } catch (err) {
+    console.error("[Popup][Voice] ❌ Error while sending query:", err);
+    window.createMessageElement(`⚠️ Error: ${err.message}`, "assistant");
+  }
+}
+
+// Text-to-Speech with Deepgram
+async function speakTextWithDeepgram(text) {
+  try {
+    if (!text || text.trim() === "") return;
+
+    const langCode = await detectLanguageAI(text);
+    console.log(`[TTS] 🧠 Language detected: ${langCode}`);
+
+    // Allowed languages: English and Spanish only
+    const allowedLangs = ["en-US", "es-ES"];
+    if (!allowedLangs.includes(langCode)) {
+      alert(`🔔 Text-to-Speech is currently supported only for English and Spanish. We are working to support your language soon!`);
+      return;
+    }
+
+    // Prepare TTS payload
+    const payload = { text };
+    let model_name = "aura-asteria-en";
+
+    if (langCode === "es-ES") {
+      model_name = "aura-2-sirio-es";
+    }
+
+    console.log(`[TTS] 🎯 Using model: ${model_name}`);
+    console.log(`[TTS] 🗣 Text for TTS: ${text}`);
+
+    const response = await fetch(`https://api.deepgram.com/v1/speak?model=${model_name}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Token ef2c8061467bd30d586456e55bfb751027e553fb`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[TTS] ❌ Deepgram error:", errorText);
+      return;
+    }
+
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audioEl = document.getElementById("voice-audio");
+
+    if (audioEl) {
+      audioEl.src = audioUrl;
+      audioEl.style.display = "block";
+      await audioEl.play();
+      console.log("[TTS] ✅ Played voice successfully!");
+    } else {
+      console.error("[TTS] ❌ Audio element not found");
+    }
+  } catch (err) {
+    console.error("[TTS] ⚠️ Error:", err);
+  }
+}
+
+// Language Detection
+let languageDetector = null;
+
+async function initLanguageDetector() {
+  // More robust API detection
+  if (!self.LanguageDetector || typeof LanguageDetector.create !== 'function') {
+    console.warn("[LangDetect] ❌ Language Detector API not supported in this browser.");
+    return createFallbackDetector();
+  }
+
+  try {
+    // Check if the API is actually usable (not blocked by policies)
+    const availability = await LanguageDetector.availability();
+    console.log("[LangDetect] Model availability:", availability);
+
+    if (availability === 'downloadable') {
+      console.log("[LangDetect] ⏬ Downloading model...");
+    }
+
+    const languageDetector = await LanguageDetector.create({
+      monitor(m) {
+        m.addEventListener('downloadprogress', (e) => {
+          console.log(`[LangDetect] Downloaded ${(e.loaded * 100).toFixed(1)}%`);
+        });
+      },
+    });
+
+    console.log("[LangDetect] ✅ Detector ready");
+    return languageDetector;
+  } catch (error) {
+    console.error("[LangDetect] Failed to initialize detector:", error);
+    return createFallbackDetector();
+  }
+}
+
+function createFallbackDetector() {
+  console.log("[LangDetect] Using fallback language detector");
+
+  return {
+    async detect(text) {
+      // Simple language detection based on character patterns
+      if (!text || text.trim().length === 0) {
+        return [{ language: 'en', confidence: 1.0 }];
+      }
+
+      const cleanText = text.trim().toLowerCase();
+
+      // Common language patterns
+      const patterns = {
+        'en': /^[a-z\s.,!?;:'"-]+$/, // Basic Latin
+        'es': /[áéíóúñ]/,
+        'fr': /[àâæçéèêëîïôœùûüÿ]/,
+        'de': /[äöüß]/,
+        'it': /[àèéìíîòóùú]/,
+        'pt': /[áâãàçéêíóôõú]/,
+        'ru': /[а-яё]/,
+        'zh': /[\u4e00-\u9fff]/, // Chinese characters
+        'ja': /[\u3040-\u309f\u30a0-\u30ff]/, // Hiragana/Katakana
+        'ko': /[\uac00-\ud7af]/, // Hangul
+        'ar': /[\u0600-\u06ff]/, // Arabic
+      };
+
+      const scores = [];
+
+      for (const [lang, pattern] of Object.entries(patterns)) {
+        const matches = (cleanText.match(pattern) || []).length;
+        const confidence = matches / Math.max(cleanText.length, 1);
+
+        if (confidence > 0.1) { // Only consider if we have some confidence
+          scores.push({
+            language: lang,
+            confidence: Math.min(confidence, 0.95)
+          });
+        }
+      }
+
+      // Sort by confidence and return top results
+      scores.sort((a, b) => b.confidence - a.confidence);
+
+      // If no clear match, default to English
+      if (scores.length === 0 || scores[0].confidence < 0.3) {
+        return [{ language: 'en', confidence: 0.5 }];
+      }
+
+      return scores.slice(0, 3); // Return top 3 guesses
+    },
+
+    // Add other methods that might be expected
+    async getLanguages() {
+      return ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja', 'ko', 'ar'];
+    },
+
+    dispose() {
+      // Cleanup if needed
+    }
+  };
+}
+
+async function detectLanguageAI(text) {
+  if (!languageDetector) {
+    console.warn("[LangDetect] ⚠️ Detector not ready — initializing...");
+    await initLanguageDetector();
+  }
+
+  if (!text || text.trim().length < 3) {
+    console.warn("[LangDetect] ⚠️ Text too short for detection.");
+    return "en-US";
+  }
+
+  try {
+    const results = await languageDetector.detect(text);
+    const top = results[0];
+    console.log("[LangDetect] 🔠 Detected:", top.detectedLanguage, "confidence:", top.confidence);
+
+    const langMap = {
+      en: "en-US",
+      hi: "hi-IN",
+      ta: "ta-IN",
+      te: "te-IN",
+      fr: "fr-FR",
+      de: "de-DE",
+      es: "es-ES",
+      zh: "zh-CN",
+      ja: "ja-JP",
+    };
+
+    const locale = langMap[top.detectedLanguage] || "en-US";
+    console.log("[LangDetect] 🌍 Mapped locale:", locale);
+    return locale;
+  } catch (err) {
+    console.error("[LangDetect] ❌ Detection failed:", err);
+    return "en-US";
+  }
+}
+
+// Draggable popup functionality
+function dragElement(elmnt) {
+  let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+  const header = document.getElementById("milo-mate-header");
+  if (header) {
+    header.onmousedown = dragMouseDown;
+  } else {
     elmnt.onmousedown = dragMouseDown;
   }
 
   function dragMouseDown(e) {
     e = e || window.event;
     e.preventDefault();
-    // get the mouse cursor position at startup:
     pos3 = e.clientX;
     pos4 = e.clientY;
     document.onmouseup = closeDragElement;
-    // call a function whenever the cursor moves:
     document.onmousemove = elementDrag;
   }
 
   function elementDrag(e) {
     e = e || window.event;
     e.preventDefault();
-    // calculate the new cursor position:
     pos1 = pos3 - e.clientX;
     pos2 = pos4 - e.clientY;
     pos3 = e.clientX;
     pos4 = e.clientY;
-    // set the element's new position:
     elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
     elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
   }
 
   function closeDragElement() {
-    // stop moving when mouse button is released:
     document.onmouseup = null;
     document.onmousemove = null;
   }
 }
+
+// =====================
+// RAG SYSTEM CLASSES
+// =====================
+
+// FAISS-like in-memory vector store with embeddings
+class FAISSVectorStore {
+  constructor(dimension = 384) {
+    this.dbName = 'MiloMateVectorDB';
+    this.storeName = 'vectorChunks';
+    this.dimension = dimension;
+    this.db = null;
+    this.vectorIndex = null;
+    this.embeddingsCache = new Map();
+  }
+
+  async init() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, 3);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.db = request.result;
+        this.initializeVectorIndex();
+        resolve(this.db);
+      };
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
+          store.createIndex('url', 'url', { unique: false });
+          store.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+      };
+    });
+  }
+
+  initializeVectorIndex() {
+    this.vectorIndex = {
+      vectors: [],
+      ids: [],
+      url: []
+    };
+  }
+
+  static l2Distance(a, b) {
+    let sum = 0;
+    for (let i = 0; i < a.length; i++) {
+      sum += (a[i] - b[i]) ** 2;
+    }
+    return Math.sqrt(sum);
+  }
+
+  static cosineSimilarity(a, b) {
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < a.length; i++) {
+      dotProduct += a[i] * b[i];
+      normA += a[i] ** 2;
+      normB += b[i] ** 2;
+    }
+
+    if (normA === 0 || normB === 0) return 0;
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  }
+
+  async storeChunksWithEmbeddings(url, chunksWithEmbeddings) {
+    if (!this.db) await this.init();
+
+    const transaction = this.db.transaction([this.storeName], 'readwrite');
+    const store = transaction.objectStore(this.storeName);
+
+    return new Promise((resolve, reject) => {
+      const clearRequest = store.index('url').openCursor(IDBKeyRange.only(url));
+
+      clearRequest.onsuccess = () => {
+        const cursor = clearRequest.result;
+        if (cursor) {
+          const index = this.vectorIndex.ids.indexOf(cursor.primaryKey);
+          if (index > -1) {
+            this.vectorIndex.vectors.splice(index, 1);
+            this.vectorIndex.ids.splice(index, 1);
+            this.vectorIndex.url.splice(index, 1);
+          }
+          store.delete(cursor.primaryKey);
+          cursor.continue();
+        } else {
+          const timestamp = Date.now();
+          const operations = chunksWithEmbeddings.map((chunk, index) => {
+            const id = `${url}_${timestamp}_${index}`;
+
+            this.vectorIndex.vectors.push(chunk.embedding);
+            this.vectorIndex.ids.push(id);
+            this.vectorIndex.url.push(url);
+
+            return {
+              id,
+              url,
+              text: chunk.text,
+              embedding: chunk.embedding,
+              tokens: chunk.tokens || [],
+              metadata: chunk.metadata,
+              timestamp
+            };
+          });
+
+          operations.forEach(op => {
+            try {
+              store.add(op);
+            } catch (error) {
+              console.error('Error storing chunk:', error);
+            }
+          });
+
+          transaction.oncomplete = () => {
+            console.log(`📊 Vector index now has ${this.vectorIndex.vectors.length} vectors`);
+            resolve(operations.length);
+          };
+          transaction.onerror = () => reject(transaction.error);
+        }
+      };
+      clearRequest.onerror = () => reject(clearRequest.error);
+    });
+  }
+
+  async searchSimilarVectors(queryEmbedding, url = null, topK = 5) {
+    if (!this.db) await this.init();
+    if (this.vectorIndex.vectors.length === 0) return [];
+
+    const results = [];
+
+    for (let i = 0; i < this.vectorIndex.vectors.length; i++) {
+      if (url && this.vectorIndex.url[i] !== url) continue;
+
+      const similarity = FAISSVectorStore.cosineSimilarity(
+        queryEmbedding,
+        this.vectorIndex.vectors[i]
+      );
+
+      results.push({
+        id: this.vectorIndex.ids[i],
+        similarity,
+        index: i
+      });
+    }
+
+    results.sort((a, b) => b.similarity - a.similarity);
+
+    const topResults = results.slice(0, topK);
+    const fullChunks = await this.getChunksByIds(topResults.map(r => r.id));
+
+    return topResults.map((result, i) => ({
+      ...fullChunks[i],
+      similarity: result.similarity
+    })).filter(chunk => chunk !== undefined);
+  }
+
+  async getChunksByIds(ids) {
+    if (!this.db) await this.init();
+
+    const transaction = this.db.transaction([this.storeName], 'readonly');
+    const store = transaction.objectStore(this.storeName);
+
+    const chunks = await Promise.all(
+      ids.map(id =>
+        new Promise((resolve) => {
+          const request = store.get(id);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => resolve(undefined);
+        })
+      )
+    );
+
+    return chunks.filter(chunk => chunk !== undefined);
+  }
+
+  async getChunks(url) {
+    if (!this.db) await this.init();
+
+    const transaction = this.db.transaction([this.storeName], 'readonly');
+    const store = transaction.objectStore(this.storeName);
+    const request = store.index('url').getAll(IDBKeyRange.only(url));
+
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+  }
+}
+
+// Enhanced Text Processor with Embedding Support
+class EmbeddingTextProcessor {
+  static chunkText(text, chunkSize = 100, overlap = 20) {
+    if (!text) return [];
+
+    const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+    const chunks = [];
+
+    for (const paragraph of paragraphs) {
+      const words = paragraph.split(/\s+/);
+
+      if (words.length <= chunkSize) {
+        chunks.push(paragraph.trim());
+      } else {
+        const sentences = paragraph.split(/(?<=[.!?])\s+/);
+        let currentChunk = '';
+        let currentWordCount = 0;
+
+        for (const sentence of sentences) {
+          const sentenceWordCount = sentence.split(/\s+/).length;
+
+          if (currentWordCount + sentenceWordCount <= chunkSize) {
+            currentChunk += (currentChunk ? ' ' : '') + sentence;
+            currentWordCount += sentenceWordCount;
+          } else {
+            if (currentChunk) {
+              chunks.push(currentChunk.trim());
+              const chunkSentences = currentChunk.split(/(?<=[.!?])\s+/);
+              const overlapSentences = chunkSentences.slice(-2);
+              currentChunk = overlapSentences.join(' ') + ' ' + sentence;
+              currentWordCount = overlapSentences.reduce((sum, sent) =>
+                sum + sent.split(/\s+/).length, 0) + sentenceWordCount;
+            } else {
+              currentChunk = sentence;
+              currentWordCount = sentenceWordCount;
+            }
+          }
+        }
+        if (currentChunk.trim()) {
+          chunks.push(currentChunk.trim());
+        }
+      }
+    }
+
+    return chunks.filter(chunk => {
+      const wordCount = chunk.split(/\s+/).length;
+      return wordCount >= 10 && wordCount <= chunkSize * 1.5;
+    });
+  }
+
+  static getTextTokens(text) {
+    if (!text) return [];
+    return text.toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 2 && !EmbeddingTextProcessor.stopWords.has(word));
+  }
+
+  static async generateEmbedding(text) {
+    if (!text) return new Array(384).fill(0);
+
+    const cacheKey = text.toLowerCase().trim();
+    if (!EmbeddingTextProcessor.embeddingCache) {
+      EmbeddingTextProcessor.embeddingCache = new Map();
+    }
+    if (EmbeddingTextProcessor.embeddingCache.has(cacheKey)) {
+      return EmbeddingTextProcessor.embeddingCache.get(cacheKey);
+    }
+
+    const words = text.toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 2 && !EmbeddingTextProcessor.stopWords.has(word));
+
+    const embedding = new Array(384).fill(0);
+    let wordCount = 0;
+
+    for (const word of words) {
+      const hash = EmbeddingTextProcessor.simpleHash(word) % 384;
+      embedding[hash] += 1;
+      wordCount++;
+    }
+
+    if (wordCount > 0) {
+      const norm = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+      if (norm > 0) {
+        for (let i = 0; i < embedding.length; i++) {
+          embedding[i] = embedding[i] / norm;
+        }
+      }
+    }
+
+    EmbeddingTextProcessor.embeddingCache.set(cacheKey, embedding);
+    return embedding;
+  }
+
+  static simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash);
+  }
+
+  static stopWords = new Set([
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+    'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
+    'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they',
+    'my', 'your', 'his', 'her', 'its', 'our', 'their', 'what', 'which', 'who', 'whom',
+    'such', 'as', 'from', 'when', 'where', 'how', 'why', 'all', 'any', 'both', 'each',
+    'few', 'more', 'most', 'other', 'some', 'than', 'too', 'very', 'can', 'will', 'just'
+  ]);
+}
+
+// Enhanced RAG Manager with Embedding Support
+class EnhancedRAGManager {
+  constructor() {
+    this.vectorStore = new FAISSVectorStore();
+  }
+
+  async processPageContent(structuredText, url, metadata = {}) {
+    console.log('🚀 Processing page content with embeddings...');
+
+    const textChunks = EmbeddingTextProcessor.chunkText(structuredText, 400, 50);
+    console.log(`📦 Created ${textChunks.length} semantic chunks`);
+
+    console.log('🔮 Generating embeddings...');
+    const chunksWithEmbeddings = [];
+
+    for (let i = 0; i < textChunks.length; i++) {
+      try {
+        const embedding = await EmbeddingTextProcessor.generateEmbedding(textChunks[i]);
+
+        chunksWithEmbeddings.push({
+          text: textChunks[i],
+          embedding,
+          tokens: EmbeddingTextProcessor.getTextTokens(textChunks[i]),
+          metadata: {
+            chunkIndex: i,
+            totalChunks: textChunks.length,
+            chunkLength: textChunks[i].length,
+            url,
+            ...metadata
+          }
+        });
+
+        if (i % 10 === 0) {
+          console.log(`📊 Generated embeddings for ${i}/${textChunks.length} chunks`);
+        }
+      } catch (error) {
+        console.error(`Error generating embedding for chunk ${i}:`, error);
+      }
+    }
+
+    const storedCount = await this.vectorStore.storeChunksWithEmbeddings(url, chunksWithEmbeddings);
+    console.log(`💾 Stored ${storedCount} vector chunks for ${url}`);
+
+    return {
+      totalChunks: textChunks.length,
+      url,
+      averageChunkLength: textChunks.reduce((sum, chunk) => sum + chunk.length, 0) / textChunks.length
+    };
+  }
+
+  async retrieveRelevantChunks(query, url = null, topK = 5, similarityThreshold = 0.01) {
+    console.log(`🎯 Performing vector similarity search for: "${query}"`);
+
+    const queryEmbedding = await EmbeddingTextProcessor.generateEmbedding(query);
+    console.log('🔍 Query embedding generated');
+
+    const similarChunks = await this.vectorStore.searchSimilarVectors(queryEmbedding, url, topK * 2);
+
+    const relevantChunks = similarChunks
+      .filter(chunk => chunk && chunk.similarity >= similarityThreshold)
+      .slice(0, topK);
+
+    console.log(`✅ Found ${relevantChunks.length} semantically relevant chunks`);
+
+    if (relevantChunks.length > 0) {
+      console.log(`📊 Top similarity score: ${relevantChunks[0].similarity.toFixed(3)}`);
+    }
+
+    return relevantChunks;
+  }
+
+  async searchAcrossAllPages(query, topK = 5) {
+    return this.retrieveRelevantChunks(query, null, topK, 0.6);
+  }
+
+  async getVectorStoreStats() {
+    const allChunks = await this.vectorStore.getChunks();
+    return {
+      totalChunks: allChunks.length,
+      totalURLs: new Set(allChunks.map(chunk => chunk?.url).filter(Boolean)).size,
+      averageEmbeddingDimension: allChunks[0]?.embedding?.length || 0
+    };
+  }
+}
+
+// Content processing functions
+function jsonToStructuredText(data) {
+  if (!data) return "No data available";
+
+  const sections = [];
+
+  if (data.title) {
+    sections.push(`# ${data.title}`);
+  }
+
+  const structuredContent = autoStructureContent(data);
+  sections.push(...structuredContent);
+
+  sections.push(createMetadataSummary(data));
+
+  return sections.join('\n\n');
+}
+
+function autoStructureContent(data) {
+  const sections = [];
+
+  const contentAnalysis = analyzeContentStructure(data);
+
+  if (contentAnalysis.mainContent.length > 0) {
+    sections.push('## Main Content');
+    sections.push(...contentAnalysis.mainContent);
+  }
+
+  if (contentAnalysis.keyTopics.length > 0) {
+    sections.push('## Key Topics');
+    sections.push(contentAnalysis.keyTopics.map(topic => `- ${topic}`).join('\n'));
+  }
+
+  if (contentAnalysis.detailedSections.length > 0) {
+    sections.push('## Detailed Information');
+    contentAnalysis.detailedSections.forEach((section, index) => {
+      if (index < 5) {
+        sections.push(`### ${section.heading || `Section ${index + 1}`}`);
+        sections.push(section.content);
+      }
+    });
+  }
+
+  if (contentAnalysis.importantLinks.length > 0) {
+    sections.push('## Related Resources');
+    sections.push(contentAnalysis.importantLinks.map(link =>
+      `- [${link.text}](${link.href})`
+    ).join('\n'));
+  }
+
+  return sections;
+}
+
+function analyzeContentStructure(data) {
+  const analysis = {
+    mainContent: [],
+    keyTopics: [],
+    detailedSections: [],
+    importantLinks: []
+  };
+
+  if (data.headings && data.headings.length > 0) {
+    const headingGroups = groupHeadingsByImportance(data.headings);
+    analysis.keyTopics = headingGroups.mainTopics;
+  }
+
+  if (data.paras && data.paras.length > 0) {
+    const scoredParagraphs = data.paras.map((para, index) => ({
+      text: para, 
+      length: para.length
+    }));
+ 
+    analysis.mainContent = scoredParagraphs
+      .map(p => p.text);
+  }
+
+  if (data.headings && data.paras) {
+    analysis.detailedSections = createHeadingContentPairs(data.headings, data.paras);
+  }
+
+  if (data.links && data.links.length > 0) {
+    analysis.importantLinks = data.links 
+      .filter(link => !isNavigationLink(link.text));
+  }
+
+  return analysis;
+}
+
+function groupHeadingsByImportance(headings) {
+  const mainTopics = [];
+  const subTopics = [];
+
+  headings.forEach(heading => {
+    const text = typeof heading === 'string' ? heading : (heading.text || heading);
+    if (!text) return;
+
+    const words = text.split(/\s+/).length;
+    const hasImportantKeywords = /^(what|how|why|when|where|guide|tutorial|introduction|about)/i.test(text);
+
+    if (words <= 8 && hasImportantKeywords) {
+      mainTopics.push(text);
+    } else if (words <= 12) {
+      subTopics.push(text);
+    }
+  });
+
+  return { mainTopics, subTopics };
+}
+
+function calculateParagraphScore(paragraph, index, totalParagraphs) {
+  let score = 0;
+
+  const lengthScore = Math.min(paragraph.length / 500, 1);
+  score += lengthScore * 0.4;
+
+  const positionScore = 1 - (index / totalParagraphs);
+  score += positionScore * 0.3;
+
+  const hasQuestions = /\?/.test(paragraph);
+  const hasKeywords = /(important|key|main|primary|essential|crucial)/i.test(paragraph);
+  const sentenceCount = (paragraph.match(/[.!?]+/g) || []).length;
+  const sentenceComplexity = Math.min(sentenceCount / 5, 1);
+
+  score += (hasQuestions ? 0.1 : 0);
+  score += (hasKeywords ? 0.1 : 0);
+  score += sentenceComplexity * 0.1;
+
+  return Math.min(score, 1);
+}
+
+function createHeadingContentPairs(headings, paragraphs) {
+  const sections = [];
+
+  let currentHeading = null;
+  let currentContent = [];
+
+  const headingTexts = headings.map(h => typeof h === 'string' ? h : (h.text || ''));
+  const paragraphTexts = paragraphs.map(p => typeof p === 'string' ? p : p);
+
+  paragraphTexts.forEach((paragraph, index) => {
+    if (paragraph.length < 100 && /^[A-Z][^.!?]*$/.test(paragraph)) {
+      if (currentHeading && currentContent.length > 0) {
+        sections.push({
+          heading: currentHeading,
+          content: currentContent.join(' ')
+        });
+      }
+      currentHeading = paragraph;
+      currentContent = [];
+    } else if (currentHeading) {
+      currentContent.push(paragraph);
+    } else if (headingTexts.length > 0 && index < 3) {
+      currentHeading = headingTexts[0];
+      currentContent.push(paragraph);
+    }
+  });
+
+  if (currentHeading && currentContent.length > 0) {
+    sections.push({
+      heading: currentHeading,
+      content: currentContent.join(' ')
+    });
+  }
+
+  return sections;
+}
+
+function isNavigationLink(linkText) {
+  if (!linkText) return true;
+  const navKeywords = [
+    'home', 'about', 'contact', 'login', 'sign up', 'register', 'menu',
+    'search', 'help', 'support', 'privacy', 'terms', 'cookie'
+  ];
+  const lowerText = linkText.toLowerCase();
+  return navKeywords.some(keyword => lowerText.includes(keyword));
+}
+
+function createMetadataSummary(data) {
+  const summary = [];
+
+  summary.push('## Page Summary');
+
+  if (data.enhanced?.meta?.description) {
+    summary.push(`**Description:** ${data.enhanced.meta.description}`);
+  }
+
+  if (data.enhanced?.contentStats) {
+    const stats = data.enhanced.contentStats;
+    summary.push(`**Content Stats:** ${stats.totalParagraphs} paragraphs, ${stats.totalHeadings} headings`);
+  }
+
+  if (data.enhanced?.linkAnalysis) {
+    const links = data.enhanced.linkAnalysis;
+    summary.push(`**Links:** ${links.internal} internal, ${links.external} external`);
+  }
+
+  return summary.join('\n');
+}
+
+// Initialize embedding cache
+EmbeddingTextProcessor.embeddingCache = new Map();

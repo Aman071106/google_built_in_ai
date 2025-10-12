@@ -1,7 +1,6 @@
 #chrome-ai-assistant-panel button { padding:8px 10px; border-radius:6px; }
 #chrome-ai-assistant-panel #ai-menu { font-family: Arial, sans-serif; }
 
-
 /* Milo Mate Chrome Extension Styles */
 
 * {
@@ -25,9 +24,9 @@ body {
   color: white;
   padding: 16px 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  cursor: move; /* Add this */
-  user-select: none; /* Add this */
-  -webkit-user-select: none; /* Add this */
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .header-content {
@@ -55,14 +54,14 @@ body {
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  cursor: default;
-  user-select: auto;
-  -webkit-user-select: auto;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   transition: background 0.2s;
+  user-select: auto;
+  -webkit-user-select: auto;
 }
 
 .icon-btn:hover {
@@ -84,7 +83,7 @@ body {
   background: transparent;
   color: #6b7280;
   font-size: 14px;
-  cursor: default;
+  cursor: pointer;
   border-bottom: 2px solid transparent;
   user-select: auto;
   -webkit-user-select: auto;
@@ -176,6 +175,25 @@ body {
   word-wrap: break-word;
 }
 
+.message-text p {
+  margin: 4px 0;
+}
+
+.message-text code {
+  background: #2b2b2b;
+  color: #f5f5f5;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.message-text pre {
+  background: #1e1e1e;
+  padding: 8px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
 .message-time {
   font-size: 11px;
   opacity: 0.6;
@@ -199,6 +217,7 @@ body {
   font-size: 14px;
   outline: none;
   transition: border-color 0.2s;
+  cursor: text !important;
 }
 
 #chat-input-field:focus {
@@ -212,7 +231,7 @@ body {
   background: #4A90E2;
   color: white;
   border: none;
-  cursor: pointer;
+  cursor: pointer !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -257,7 +276,7 @@ body {
   border-radius: 24px;
   font-size: 15px;
   font-weight: 500;
-  cursor: pointer;
+  cursor: pointer !important;
   transition: all 0.2s;
 }
 
@@ -354,6 +373,7 @@ body {
   font-family: inherit;
   resize: vertical;
   outline: none;
+  cursor: text !important;
 }
 
 .translate-input:focus {
@@ -367,7 +387,7 @@ body {
   border-radius: 50%;
   border: 1px solid #e5e7eb;
   background: white;
-  cursor: pointer;
+  cursor: pointer !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -399,7 +419,7 @@ body {
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  cursor: pointer;
+  cursor: pointer !important;
   transition: all 0.2s;
 }
 
@@ -487,6 +507,7 @@ body {
   font-family: inherit;
   resize: vertical;
   outline: none;
+  cursor: text !important;
 }
 
 .sentiment-input:focus {
@@ -501,7 +522,7 @@ body {
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  cursor: pointer;
+  cursor: pointer !important;
   transition: all 0.2s;
 }
 
@@ -585,7 +606,7 @@ body {
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  cursor: pointer;
+  cursor: pointer !important;
   transition: all 0.2s;
 }
 
@@ -613,33 +634,54 @@ body {
   background: #94a3b8;
 }
 
-/*new one*/
-.message-text p {
-  margin: 4px 0;
+/* Typing indicator */
+.typing {
+  opacity: 0.7;
 }
 
-.message-text code {
-  background: #2b2b2b;
-  color: #f5f5f5;
-  padding: 2px 5px;
-  border-radius: 4px;
-  font-family: monospace;
+.typing-dots {
+  display: flex;
+  gap: 4px;
 }
 
-.message-text pre {
-  background: #1e1e1e;
-  padding: 8px;
-  border-radius: 6px;
-  overflow-x: auto;
+.typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  opacity: 0.6;
+  animation: typing-bounce 1.4s ease-in-out infinite both;
 }
+
+.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typing-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Recording state */
+.record-btn.recording {
+  background-color: #dc2626;
+  color: white;
+}
+
+/* Cursor fixes for interactive elements */
 .icon-btn, .tab, button, input, textarea, select {
-  cursor: default; /* Reset cursor for interactive elements */
+  cursor: default;
   user-select: auto;
   -webkit-user-select: auto;
 }
 
 /* Specifically for buttons */
-.icon-btn, .tab, .send-btn, .record-btn, .translate-btn, .analyze-btn, .settings-btn {
+.icon-btn, .tab, .send-btn, .record-btn, .translate-btn, .analyze-btn, .settings-btn, .swap-btn {
   cursor: pointer !important;
 }
 
