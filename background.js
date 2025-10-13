@@ -516,16 +516,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         isRecording: voiceManager.isRecording
       });
       return false;
-    case "AUDIO_RECORDING_COMPLETE":
-      console.log('[BG] Regular audio recording complete');
-      // Popup ko forward karo with same type
-      chrome.runtime.sendMessage({
-        type: "AUDIO_RECORDING_COMPLETE",
-        success: true,
-        audioBase64: msg.audioBase64,
-        mimeType: msg.mimeType
-      });
-      break;
+    // case "AUDIO_RECORDING_COMPLETE":
+    //   console.log('[BG] Regular audio recording complete');
+    //   // Popup ko forward karo with same type
+    //   chrome.runtime.sendMessage({
+    //     type: "AUDIO_RECORDING_COMPLETE",
+    //     success: true,
+    //     audioBase64: msg.audioBase64,
+    //     mimeType: msg.mimeType
+    //   });
+    //   break;
 
     case "AUDIO_RECORDING_COMPLETE_LIVE":
       console.log('[BG] Live audio recording complete');
