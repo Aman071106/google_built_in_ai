@@ -261,9 +261,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- 7. Make the popup draggable ---
   const popup = document.getElementById("milo-mate-popup");
-  if (popup) {
-    dragElement(popup);
-  }
+  // if (popup) {
+  //   dragElement(popup);
+  // }
 });
 
 // =====================
