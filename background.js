@@ -356,6 +356,12 @@ async function ensureSession() {
         console.log(`[BG] Downloaded ${(e.loaded * 100).toFixed(1)}%`);
       });
     },
+    expectedInputs: [
+    { type: "text", languages: ["en"], },{ type: 'image' }
+  ],
+  expectedOutputs: [
+    { type: "text", languages: ["en"] }
+  ],
     initialPrompts: [
       {
         role: "system",
