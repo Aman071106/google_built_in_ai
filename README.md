@@ -1,25 +1,25 @@
 ## 🌐 Milo Mate — One stop AI-Powered Multilingual Customer Service Assistant  
 
 ### 🏆IT Hackathon Challenge  
-**Goal:** Create AI-powered tools that enhance efficiency, personalize customer interactions, and boost overall business performance.  
+*Goal:* Create AI-powered tools that enhance efficiency, personalize customer interactions, and boost overall business performance.  
 
 ---
 
 ### 🚀 Our Solution  
-**Milo Mate** is a browser extension that revolutionizes customer service with **real-time multilingual support**, **content understanding**, **live meeting transcription**, and **AI-powered summarization** — all running **locally** for privacy-first operations.
+*Milo Mate* is a browser extension that revolutionizes customer service with *real-time multilingual support, **content understanding, **live meeting transcription, and **AI-powered summarization* — all running *locally* for privacy-first operations.
 
 ---
 
 ### 🎯 Problem Statement  
 
-**Modern Customer Service Challenges:**  
-- 🌍 **Language Barriers:** Miscommunication with multilingual customers  
-- 📚 **Information Overload:** Agents spend time searching long docs & FAQs  
-- 📝 **Manual Note-Taking:** Inefficient and error-prone meeting documentation  
-- 🧠 **Content Processing:** Extracting insights from complex sources is tedious  
-- 🔄 **Context Loss:** Switching between tools causes fragmented workflows  
+*Modern Customer Service Challenges:*  
+- 🌍 *Language Barriers:* Miscommunication with multilingual customers  
+- 📚 *Information Overload:* Agents spend time searching long docs & FAQs  
+- 📝 *Manual Note-Taking:* Inefficient and error-prone meeting documentation  
+- 🧠 *Content Processing:* Extracting insights from complex sources is tedious  
+- 🔄 *Context Loss:* Switching between tools causes fragmented workflows  
 
-**Business Issues:**  
+*Business Issues:*  
 - 🔴 Slower response times  
 - 🔴 Decreased customer satisfaction  
 - 🔴 Increased operational costs  
@@ -30,43 +30,43 @@
 
 ### 💡 Solution Overview  
 
-**Milo Mate empowers teams with:**  
-✅ **Real-time multilingual voice chat** — communicate seamlessly in any language  
-✅ **Intelligent content understanding** — instantly fetch relevant webpage info  
-✅ **Live transcription** — automatically document client meetings  
-✅ **Smart summarization** — extract actionable insights from conversations & docs  
-✅ **Multimodal query support** — analyze text + images for complete context  
-✅ **Contextual navigation** — jump directly to relevant pages intelligently  
+*Milo Mate empowers teams with:*  
+✅ *Real-time multilingual voice chat* — communicate seamlessly in any language  
+✅ *Intelligent content understanding* — instantly fetch relevant webpage info  
+✅ *Live transcription* — automatically document client meetings  
+✅ *Smart summarization* — extract actionable insights from conversations & docs  
+✅ *Multimodal query support* — analyze text + images for complete context  
+✅ *Contextual navigation* — jump directly to relevant pages intelligently  
 
 ---
-> 🧭 *A privacy-first AI companion that transforms every customer interaction into a smarter, faster, multilingual experience.*
+> 🧭 A privacy-first AI companion that transforms every customer interaction into a smarter, faster, multilingual experience.
 
 
-## 🏗️ Hybrid Architecture & Overall Workflow
+## 🏗 Hybrid Architecture & Overall Workflow
 
 
 ![alt text](assets/complete_architecture.png)
 
 
-## ⚙️ Workflow Overview  
+## ⚙ Workflow Overview  
 
 ### 🧩 1. Content Ingestion  
-📄 **Process:**  
+📄 *Process:*  
 - Content Script → Scrapes webpage data  
 - Background Worker → Chunks & vectorizes the content  
 
 ---
 
 ### 💬 2. Query Processing  
-🎤 **Flow:**  
-- User Input → *(Text / Voice / Image)*  
+🎤 *Flow:*  
+- User Input → (Text / Voice / Image)  
 - 🌐 Language Detection  
-- 🔁 Translation *(if needed)*  
+- 🔁 Translation (if needed)  
 
 ---
 
 ### 🧠 3. AI Processing  
-⚡ **Steps:**  
+⚡ *Steps:*  
 - 🔍 Vector Similarity Search  
 - 🤖 Gemini Nano Inference  
 - 🧭 Context-Aware Response Generation  
@@ -74,18 +74,18 @@
 ---
 
 ### 📤 4. Output Delivery  
-🗣️ **Final Stage:**  
+🗣 *Final Stage:*  
 - 🌍 Translation back to user language  
 - 🔊 Optional Voice Synthesis  
 - 💻 Display response in UI  
 
 ---
 
-> 🧠 *From content understanding to intelligent multilingual response — all in real time, all local.*
+> 🧠 From content understanding to intelligent multilingual response — all in real time, all local.
 
 
 ## 📁Project Structure
-```
+
 milo-mate/
 │
 ├── manifest.json              # Extension configuration & permissions
@@ -110,17 +110,17 @@ milo-mate/
 └── libs/
     ├── marked.min.js         # Markdown rendering
     └── purify.min.js         # XSS protection
-```
+
 
 
 # 🚀 Issues Addressed - Architecture Breakdown
-## 🗣️ Issue 1: Real-Time Multilingual Voice Communication  
+## 🗣 Issue 1: Real-Time Multilingual Voice Communication  
 
 ### ❌ Problem Description  
 Customer service agents often face difficulty engaging non-English-speaking customers, resulting in:  
 - 😕 Misunderstandings and customer frustration  
 - 💸 Dependence on human translators (high cost)  
-- ⏱️ Longer resolution times  
+- ⏱ Longer resolution times  
 - 🚫 Lost opportunities in non-English markets  
 
 ### 🔴 Before Milo Mate
@@ -132,54 +132,46 @@ Customer service agents often face difficulty engaging non-English-speaking cust
 
 ## 🔑 Key Features — Real-Time Multilingual Voice Chat  
 
-✅ **Supports 9+ Languages:**  
+✅ *Supports 9+ Languages:*  
 English, Spanish, French, German, Hindi, Chinese, Japanese, Tamil, Telugu  
 
-✅ **Ultra-Low Latency:**  
+✅ *Ultra-Low Latency:*  
 Real-time voice transcription with <500 ms delay  
 
-✅ **Automatic Language Detection:**  
+✅ *Automatic Language Detection:*  
 No need for manual input — system auto-detects spoken language  
 
-✅ **Voice Synthesis in Target Language:**  
+✅ *Voice Synthesis in Target Language:*  
 Responses are spoken naturally in the customer’s language  
 
-✅ **Seamless Multilingual Flow:**  
+✅ *Seamless Multilingual Flow:*  
 No tool switching, no extra translation step — all handled locally  
 
 ---
 
 ## 💼 Business Impact  
 
-📈 **80% Reduction** in call handling time for non-English customers  
-🌍 **Global Market Expansion** without hiring multilingual staff  
-💬 **95% Customer Satisfaction** in multilingual interactions  
+📈 *80% Reduction* in call handling time for non-English customers  
+🌍 *Global Market Expansion* without hiring multilingual staff  
+💬 *95% Customer Satisfaction* in multilingual interactions  
 
 ---
 
-> 🌐 *Milo Mate empowers agents to communicate effortlessly across languages — faster, cheaper, and more human.*
+> 🌐 Milo Mate empowers agents to communicate effortlessly across languages — faster, cheaper, and more human.
 
 
-## 🖥️ Demo Screens — Live Meeting Transcription  
-
-🎙️ **Voice Recording Interface**  
-> [TODO: Add screenshot — shows live waveform while recording customer voice]
-
-📝 **Real-Time Transcription**  
-> [TODO: Add screenshot — transcription appears instantly in chat interface]
-
-🌐 **Translated Response with Voice Playback**  
-> [TODO: Add screenshot — AI response translated to customer language with playback button]
+## 🖥 Demo Screens — Live Meeting Transcription  
+![alt text](assets/recording_live.png)
 
 ---
 
-> ⚡ *Milo Mate captures, transcribes, and translates meetings in real-time — enabling instant multilingual communication and accurate documentation.*
+> ⚡ Milo Mate captures, transcribes, and translates meetings in real-time — enabling instant multilingual communication and accurate documentation.
 
 
 ## 🧩 Issue 2: Website-Agnostic Intelligent Content Understanding  
 
 ### ❌ Problem Description  
-Support agents spend **40–60% of their time** searching across documentation, FAQs, and internal tools to answer customer queries — leading to:  
+Support agents spend *40–60% of their time* searching across documentation, FAQs, and internal tools to answer customer queries — leading to:  
 - 🕓 Wasted time switching tabs  
 - 📚 Information overload  
 - 😩 Inconsistent or delayed responses  
@@ -199,59 +191,50 @@ Support agents spend **40–60% of their time** searching across documentation, 
 
 ## 🔑 Key Features — Intelligent Content Understanding  
 
-✅ **Enhanced Content Scraping**  
-Extracts **headings, paragraphs, links, images, and metadata** from any webpage  
+✅ *Enhanced Content Scraping*  
+Extracts *headings, paragraphs, links, images, and metadata* from any webpage  
 
-✅ **Semantic Chunking**  
-Splits content into **400-word chunks** with **50-word overlap** to preserve context across boundaries  
+✅ *Semantic Chunking*  
+Splits content into *400-word chunks* with *50-word overlap* to preserve context across boundaries  
 
-✅ **Vector Embeddings**  
-Uses **384-dimensional embeddings** for precise semantic similarity representation  
+✅ *Vector Embeddings*  
+Uses *384-dimensional embeddings* for precise semantic similarity representation  
 
-✅ **FAISS-like Search Mechanism**  
-Performs **L2 distance** and **cosine similarity** computations for fast, relevant retrieval  
+✅ *FAISS-like Search Mechanism*  
+Performs *L2 distance* and *cosine similarity* computations for fast, relevant retrieval  
 
-✅ **Contextual Link Navigation**  
-Automatically provides **related page links** when answers aren’t available on the current page  
+✅ *Contextual Link Navigation*  
+Automatically provides *related page links* when answers aren’t available on the current page  
 
-✅ **Website-Agnostic Operation**  
-Works on **any website** — no API integration or backend dependency required  
+✅ *Website-Agnostic Operation*  
+Works on *any website* — no API integration or backend dependency required  
 
 ---
 
-> 🧠 *Milo Mate transforms static web content into a dynamic, searchable knowledge space — powered by local embeddings and RAG intelligence.*
+> 🧠 Milo Mate transforms static web content into a dynamic, searchable knowledge space — powered by local embeddings and RAG intelligence.
 ## 💼 Business Impact  
 
-📈 **90% Reduction** in documentation search time  
-⚡ **3× Faster** customer query resolution  
-💰 **Zero Integration Cost** — works instantly on any website, no backend setup required  
+📈 *90% Reduction* in documentation search time  
+⚡ *3× Faster* customer query resolution  
+💰 *Zero Integration Cost* — works instantly on any website, no backend setup required  
 
 ---
 
-## 🖥️ Demo Screens  
-
-🪄 **Chat Interface (Q&A with Markdown)**  
-> [TODO: Add screenshot — shows customer question and AI-generated response with highlighted markdown text]
-
-🧠 **RAG Metadata View**  
-> [TODO: Add screenshot — displays chunks used, embedding vectors, and context window length]
-
-🔗 **Smart Navigation Links**  
-> [TODO: Add screenshot — suggests related pages when relevant info is found elsewhere]
-
+## 🖥 Demo Screens  
+![alt text](assets/query_text.png)
 ---
 
-> 🧭 *From static web pages to instant, AI-driven knowledge discovery — Milo Mate empowers agents to find the right answer in seconds.*
+> 🧭 From static web pages to instant, AI-driven knowledge discovery — Milo Mate empowers agents to find the right answer in seconds.
 
 
-## 🖼️ Issue 3: Multimodal Query Support (Text + Image)  
+## 🖼 Issue 3: Multimodal Query Support (Text + Image)  
 
 ### ❌ Problem Description  
-Customers often need assistance with **visual content** (screenshots, product images, error messages), but traditional text-only chatbots cannot process images, forcing agents to:  
+Customers often need assistance with *visual content* (screenshots, product images, error messages), but traditional text-only chatbots cannot process images, forcing agents to:  
 - 📥 Download images manually  
-- 🖼️ Open and interpret them  
+- 🖼 Open and interpret them  
 - 🔍 Search knowledge bases manually  
-- ⏱️ Spend 5–10 minutes per image query  
+- ⏱ Spend 5–10 minutes per image query  
 
 ---
 
@@ -268,48 +251,41 @@ Customers often need assistance with **visual content** (screenshots, product im
 
 ## 🔑 Key Features — Multimodal Query Support  
 
-✅ **Supports PNG, JPG, WEBP** (up to 5MB)  
-✅ **Analyzes image with webpage context** for accurate understanding  
-✅ **Gemini Nano multimodal vision** capabilities  
-✅ **Provides detailed descriptions & troubleshooting**  
-✅ **Image preview in chat** for easy reference  
-✅ **Voice output** for accessibility and inclusive support  
+✅ *Supports PNG, JPG, WEBP* (up to 5MB)  
+✅ *Analyzes image with webpage context* for accurate understanding  
+✅ *Gemini Nano multimodal vision* capabilities  
+✅ *Provides detailed descriptions & troubleshooting*  
+✅ *Image preview in chat* for easy reference  
+✅ *Voice output* for accessibility and inclusive support  
 
 
 ---
 
 ## 💼 Business Impact  
 
-📈 **85% Faster** resolution for visual queries  
-⚡ **Reduced Escalations** — AI handles most image-based questions  
-♿ **Improved Accessibility** — voice output helps visually impaired users  
+📈 *85% Faster* resolution for visual queries  
+⚡ *Reduced Escalations* — AI handles most image-based questions  
+♿ *Improved Accessibility* — voice output helps visually impaired users  
 
 ---
 
-## 🖥️ Demo Screens  
+## 🖥 Demo Screens  
 
-🖼️ **Image Upload Button**  
-> [TODO: Add screenshot — chat interface with image upload feature]
-
-🔍 **Uploaded Image Preview & AI Analysis**  
-> [TODO: Add screenshot — shows image preview and AI-generated insights]
-
-💬 **Detailed Response Explaining Image Content**  
-> [TODO: Add screenshot — AI provides explanation and troubleshooting steps]
+![alt text](assets/query.png)
 
 ---
 
-> 🌐 *Milo Mate bridges text and visual content seamlessly, delivering faster, accurate, and accessible customer support.*
+> 🌐 Milo Mate bridges text and visual content seamlessly, delivering faster, accurate, and accessible customer support.
 
 
 ## 📞 Issue 4: Live Meeting & Conference Transcription  
 
 ### ❌ Problem Description  
-Customer calls and meetings require **manual note-taking**, resulting in:  
-- 📝 **Incomplete or inaccurate records**  
-- 👂 **Agents focused on typing instead of actively listening**  
-- 🔍 **No searchable transcripts** for future reference  
-- ⚖️ **Legal/compliance risks** from missing critical information  
+Customer calls and meetings require *manual note-taking*, resulting in:  
+- 📝 *Incomplete or inaccurate records*  
+- 👂 *Agents focused on typing instead of actively listening*  
+- 🔍 *No searchable transcripts* for future reference  
+- ⚖ *Legal/compliance risks* from missing critical information  
 
 ---
 ### 🔴 Before Situation  
@@ -324,51 +300,40 @@ Customer calls and meetings require **manual note-taking**, resulting in:
 
 ## 🔑 Key Features — Live Meeting & Conference Transcription  
 
-✅ **Real-time transcription** with <1 second latency  
-✅ **5-second audio chunking** for optimal accuracy  
-✅ **Rate-limited queue** prevents API overload  
-✅ **Session management** — supports multiple recordings per session  
-✅ **Auto-scroll** — always shows the latest transcript  
-✅ **Visual feedback** — recording indicator and progress  
-✅ **Exportable transcripts** for CRM integration  
+✅ *Real-time transcription* with <1 second latency  
+✅ *5-second audio chunking* for optimal accuracy  
+✅ *Rate-limited queue* prevents API overload  
+✅ *Session management* — supports multiple recordings per session  
+✅ *Auto-scroll* — always shows the latest transcript  
+✅ *Visual feedback* — recording indicator and progress  
+✅ *Exportable transcripts* for CRM integration  
 
 ---
 
 ## 💼 Business Impact  
 
-📈 **100% Accurate** meeting records  
-⚡ **Zero Post-Call Work** — instant documentation  
-🛡️ **Improved Compliance** — complete audit trail  
-💬 **Better Customer Experience** — agents fully focused on conversation  
+📈 *100% Accurate* meeting records  
+⚡ *Zero Post-Call Work* — instant documentation  
+🛡 *Improved Compliance* — complete audit trail  
+💬 *Better Customer Experience* — agents fully focused on conversation  
 
 ---
 
-## 🖥️ Demo Screens  
-
-🎙️ **Live Transcription Tab**  
-> [TODO: Add screenshot — shows Start Recording button]
-
-📝 **Real-Time Transcript Display**  
-> [TODO: Add screenshot — transcript appears live during recording]
-
-📂 **Completed Session**  
-> [TODO: Add screenshot — completed session with timestamp & export options]
-
 ---
 
-> 🌐 *Milo Mate transforms live calls into instant, accurate, and searchable transcripts — freeing agents to engage fully with customers.*
+> 🌐 Milo Mate transforms live calls into instant, accurate, and searchable transcripts — freeing agents to engage fully with customers.
 
 
 ## 📝 Issue 5: Intelligent Task Summarization (MoM, Emails, Documents)  
 
 ### ❌ Problem Description  
-Customer service agents spend **hours reading and summarizing**:  
+Customer service agents spend *hours reading and summarizing*:  
 - 📧 Long email threads  
 - 📝 Meeting minutes  
-- 🗂️ Customer feedback documents  
+- 🗂 Customer feedback documents  
 - 📄 Policy documents  
 
-Manual summarization is **slow, inconsistent, and error-prone**, often missing critical details.  
+Manual summarization is *slow, inconsistent, and error-prone*, often missing critical details.  
 
 ---
 
@@ -381,77 +346,80 @@ Manual summarization is **slow, inconsistent, and error-prone**, often missing c
 ### Pipeline
 ![alt text](assets/issue_5_flow.png)
 
+
+### DEMO SCREEN 
+![alt text](assets/summary.png)
 ## 🔑 Key Features — Intelligent Task Summarization  
 
 ### 📋 Summary Types  
-- **Key Points:** Bullet-list format highlighting main ideas  
-- **TL;DR:** Brief overview in 2–3 sentences  
-- **Teaser:** Engaging hook for promotional or highlight content  
-- **Headline:** Single-line concise summary  
+- *Key Points:* Bullet-list format highlighting main ideas  
+- *TL;DR:* Brief overview in 2–3 sentences  
+- *Teaser:* Engaging hook for promotional or highlight content  
+- *Headline:* Single-line concise summary  
 
-### ⚙️ Configuration Options  
-- **Length:** Short (50–100 words) / Medium (100–300 words) / Long (300+ words)  
-- **Format:** Markdown (rich formatting) / Plain Text  
-- **Context:** Optional domain-specific guidance for more accurate summarization  
+### ⚙ Configuration Options  
+- *Length:* Short (50–100 words) / Medium (100–300 words) / Long (300+ words)  
+- *Format:* Markdown (rich formatting) / Plain Text  
+- *Context:* Optional domain-specific guidance for more accurate summarization  
 
 ### 📈 Metadata Tracking  
-- **Original character count** of the input  
-- **Summary character count**  
-- **Compression ratio (%)**  
+- *Original character count* of the input  
+- *Summary character count*  
+- *Compression ratio (%)*  
 
 ---
 
-> 🤖 *Milo Mate delivers fast, configurable, and accurate summarizations — giving agents control over style, length, and context while maintaining full transparency via metadata tracking.*
+> 🤖 Milo Mate delivers fast, configurable, and accurate summarizations — giving agents control over style, length, and context while maintaining full transparency via metadata tracking.
 
-## 🏗️ Architecture Patterns  
+## 🏗 Architecture Patterns  
 
 ### 🔹 Service Worker Architecture  
-- **Why Chosen:** Persistent background processing  
-- **Business Enhancement:** Reliable message handling, manages AI model lifecycle  
+- *Why Chosen:* Persistent background processing  
+- *Business Enhancement:* Reliable message handling, manages AI model lifecycle  
 
 ### 🔹 Message Passing (Chrome Runtime)  
-- **Why Chosen:** Secure cross-context communication  
-- **Business Enhancement:** Clean separation of concerns, easier debugging  
+- *Why Chosen:* Secure cross-context communication  
+- *Business Enhancement:* Clean separation of concerns, easier debugging  
 
 ### 🔹 RAG (Retrieval-Augmented Generation)  
-- **Why Chosen:** Combines semantic search with LLM  
-- **Business Enhancement:** Accurate, grounded responses with source attribution  
+- *Why Chosen:* Combines semantic search with LLM  
+- *Business Enhancement:* Accurate, grounded responses with source attribution  
 
 ### 🔹 Queue-based Audio Processing  
-- **Why Chosen:** Rate limiting and error recovery  
-- **Business Enhancement:** Prevents API throttling, ensures no audio chunks are lost  
+- *Why Chosen:* Rate limiting and error recovery  
+- *Business Enhancement:* Prevents API throttling, ensures no audio chunks are lost  
 
 ### 🔹 Hybrid Online/Offline  
-- **Why Chosen:** On-device AI + cloud APIs only when needed  
-- **Business Enhancement:** Works offline for most features, cost-effective  
+- *Why Chosen:* On-device AI + cloud APIs only when needed  
+- *Business Enhancement:* Works offline for most features, cost-effective  
 
 ---
 
 ### 💼 Business Value  
-- 🏗️ **Scalable:** Handles thousands of concurrent users  
-- 🔧 **Maintainable:** Clear separation of concerns  
-- 🛡️ **Resilient:** Graceful degradation when APIs unavailable  
-- 📊 **Observable:** Comprehensive logging for debugging  
+- 🏗 *Scalable:* Handles thousands of concurrent users  
+- 🔧 *Maintainable:* Clear separation of concerns  
+- 🛡 *Resilient:* Graceful degradation when APIs unavailable  
+- 📊 *Observable:* Comprehensive logging for debugging  
 
 ---
 
 ## 🔐 Security & Privacy Technologies  
 
 ### 🔹 DOMPurify  
-- **Purpose:** XSS sanitization for user content  
-- **Enhancement:** Prevents injection attacks, protects customers  
+- *Purpose:* XSS sanitization for user content  
+- *Enhancement:* Prevents injection attacks, protects customers  
 
 ### 🔹 Content Security Policy (CSP)  
-- **Purpose:** Prevents unauthorized script execution  
-- **Enhancement:** Compliance with security standards  
+- *Purpose:* Prevents unauthorized script execution  
+- *Enhancement:* Compliance with security standards  
 
 ### 🔹 On-Device Processing  
-- **Purpose:** Data never sent to external servers  
-- **Enhancement:** GDPR/CCPA compliant by design  
+- *Purpose:* Data never sent to external servers  
+- *Enhancement:* GDPR/CCPA compliant by design  
 
 ### 🔹 Base64 Encoding  
-- **Purpose:** Safe binary data transmission  
-- **Enhancement:** Prevents data corruption in message passing  
+- *Purpose:* Safe binary data transmission  
+- *Enhancement:* Prevents data corruption in message passing  
 
 ---
 
@@ -464,37 +432,37 @@ Manual summarization is **slow, inconsistent, and error-prone**, often missing c
 ---
 
 ### 💼 Business Value  
-- 🔒 **Compliance-ready:** GDPR, CCPA, HIPAA-friendly architecture  
-- 🛡️ **Zero data breach risk:** no customer data to breach  
-- 💼 **Enterprise-ready:** security-first design  
-- ⭐ **Customer trust:** transparent privacy practices  
+- 🔒 *Compliance-ready:* GDPR, CCPA, HIPAA-friendly architecture  
+- 🛡 *Zero data breach risk:* no customer data to breach  
+- 💼 *Enterprise-ready:* security-first design  
+- ⭐ *Customer trust:* transparent privacy practices  
 
 
 ## 🚀 Getting Started  
 
-### 🛠️ Prerequisites  
-- **Chrome Canary** (version 127+) with experimental AI features enabled  
-- Enable the following flags in `chrome://flags`:  
-  - `#optimization-guide-on-device-model` → Enabled (BypassPerfRequirement)  
-  - `#prompt-api-for-gemini-nano` → Enabled  
-  - `#summarization-api-for-gemini-nano` → Enabled  
-  - `#translation-api` → Enabled  
-  - `#language-detection-api` → Enabled  
+### 🛠 Prerequisites  
+- *Chrome Canary* (version 127+) with experimental AI features enabled  
+- Enable the following flags in chrome://flags:  
+  - #optimization-guide-on-device-model → Enabled (BypassPerfRequirement)  
+  - #prompt-api-for-gemini-nano → Enabled  
+  - #summarization-api-for-gemini-nano → Enabled  
+  - #translation-api → Enabled  
+  - #language-detection-api → Enabled  
 
 ---
 
 ### 📦 Installation  
 
 ###  Clone the repository
-```bash
+bash
 git clone https://github.com/Vansh-Pandey/IT_Hackathon.git
 cd IT_Hackathon
-```
+
 ### 📦 Load Extension in Chrome
 
-1. Open `chrome://extensions/`  
-2. Enable **Developer mode**  
-3. Click **Load unpacked** → select the `IT_Hackathon` folder  
+1. Open chrome://extensions/  
+2. Enable *Developer mode*  
+3. Click *Load unpacked* → select the IT_Hackathon folder  
 
 
 
@@ -508,23 +476,23 @@ cd IT_Hackathon
 
 ### 🔑 Grant Permissions
 
-- **Microphone access** (for voice features)  
-- **Storage access** (for vector database)
+- *Microphone access* (for voice features)  
+- *Storage access* (for vector database)
 
 ## 🎉 Conclusion  
 
-Milo Mate represents a **paradigm shift in customer service AI**:  
+Milo Mate represents a *paradigm shift in customer service AI*:  
 
-✨ **Privacy-First:** All core features run on-device    
-✨ **Universal:** Works on any website, no integration required  
-✨ **Fast:** Sub-second response times  
-✨ **Intelligent:** RAG + multimodal AI for accurate, grounded responses  
+✨ *Privacy-First:* All core features run on-device   
+✨ *Universal:* Works on any website, no integration required  
+✨ *Fast:* Sub-second response times  
+✨ *Intelligent:* RAG + multimodal AI for accurate, grounded responses  
 
 ### ✅ Perfect for:  
 - 🏢 Customer service centers  
-- 🛍️ E-commerce support teams  
+- 🛍 E-commerce support teams  
 - 🏥 Healthcare organizations  
 - 💼 Financial services  
 - 🌍 Global businesses with multilingual customers  
 
-> 🚀 *Try Milo Mate today and transform your customer service operations!*
+> 🚀 Try Milo Mate today and transform your customer service operations!
