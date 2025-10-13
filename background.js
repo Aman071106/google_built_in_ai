@@ -357,11 +357,11 @@ async function ensureSession() {
       });
     },
     expectedInputs: [
-    { type: "text", languages: ["en"], },{ type: 'image' }
-  ],
-  expectedOutputs: [
-    { type: "text", languages: ["en"] }
-  ],
+      { type: "text", languages: ["en"], }, { type: 'image' }
+    ],
+    expectedOutputs: [
+      { type: "text", languages: ["en"] }
+    ],
     initialPrompts: [
       {
         role: "system",

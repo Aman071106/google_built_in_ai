@@ -56,37 +56,37 @@ function makeDraggable(element, handle) {
   function dragMouseDown(e) {
     e = e || window.event;
     e.preventDefault();
-    
+
     pos3 = e.clientX;
     pos4 = e.clientY;
-    
+
     document.onmouseup = closeDragElement;
     document.onmousemove = elementDrag;
-    
+
     isDragging = true;
     handle.style.cursor = "grabbing";
-    
+
     // Disable pointer events on iframe while dragging
     iframe.style.pointerEvents = "none";
   }
 
   function elementDrag(e) {
     if (!isDragging) return;
-    
+
     e = e || window.event;
     e.preventDefault();
-    
+
     pos1 = pos3 - e.clientX;
     pos2 = pos4 - e.clientY;
     pos3 = e.clientX;
     pos4 = e.clientY;
-    
+
     const newTop = element.offsetTop - pos2;
     const newLeft = element.offsetLeft - pos1;
-    
+
     const maxTop = window.innerHeight - element.offsetHeight;
     const maxLeft = window.innerWidth - element.offsetWidth;
-    
+
     element.style.top = Math.max(0, Math.min(newTop, maxTop)) + "px";
     element.style.left = Math.max(0, Math.min(newLeft, maxLeft)) + "px";
     element.style.bottom = "auto";
@@ -98,7 +98,7 @@ function makeDraggable(element, handle) {
     document.onmousemove = null;
     isDragging = false;
     handle.style.cursor = "move";
-    
+
     // Re-enable pointer events on iframe
     iframe.style.pointerEvents = "auto";
   }
@@ -108,22 +108,22 @@ function makeDraggable(element, handle) {
 function handlePopupMessage(event) {
   if (event.data === "close-milo-popup") {
     console.log('Closing Milo Mate...');
-    
-    const maxId = setTimeout(() => {}, 0);
+
+    const maxId = setTimeout(() => { }, 0);
     for (let i = maxId; i >= 0; i--) {
       clearTimeout(i);
       clearInterval(i);
     }
-    
+
     if (container && container.parentNode) {
       container.remove();
     }
-    
+
     window.removeEventListener("message", handlePopupMessage);
-    
+
     container = null;
     iframe = null;
-    
+
     console.log('Milo Mate closed');
   }
 }
