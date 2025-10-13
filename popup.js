@@ -354,7 +354,8 @@ function initializeVoiceRecording() {
   // Listen for messages from background
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log("Popup to rag")
-    console.log(request);
+    console.log("[POPUP]", request);
+     
     switch (request.type) {
       case "AUDIO_RECORDING_COMPLETE":
         log('📤 Received audio from background');
@@ -362,7 +363,7 @@ function initializeVoiceRecording() {
         isRecording = false;
         updateButtonState(false);
         break;
-       
+
     }
   });
 
@@ -396,7 +397,7 @@ function initializeVoiceRecording() {
         type: 'STOP_RECORDING'
       });
 
-       
+
 
     } catch (error) {
       log('❌ Error stopping recording:', error);
@@ -454,9 +455,12 @@ function initializelivestream() {
   // Listen for messages from background/content
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     log('📨 Received message:', request.type);
-
+    if (request.type === "LIVE_TRANSCRIPT_CHUNK") {
+      console.log("[Popup][LiveVoice] 📝 Received transcript chunk:", request.transcript);
+      displayLiveTranscript(request.transcript);
+    }
     switch (request.type) {
-      
+
       case "AUDIO_RECORDING_COMPLETE_LIVE":
         if (request.success) {
           log('📤 Received LIVE audio from background');
@@ -512,6 +516,20 @@ function initializelivestream() {
 
       if (response && response.success) {
         log('✅ Recording stopped successfully');
+
+        // 🔥 NEW: Finalize the active session
+        const outputArea = document.getElementById('transcription-output');
+        const activeSession = outputArea?.querySelector('.active-session');
+        if (activeSession) {
+          activeSession.classList.remove('active-session');
+          activeSession.classList.add('completed-session');
+
+          const sessionHeader = activeSession.querySelector('div');
+          if (sessionHeader) {
+            const endTime = new Date().toLocaleTimeString();
+            sessionHeader.innerHTML = sessionHeader.innerHTML.replace('🔴 Live Session', '✅ Completed Session') + ` - Ended at ${endTime}`;
+          }
+        }
       }
 
       // Update UI
@@ -566,7 +584,7 @@ async function handleAudioRecordingCompleteLive(audioBase64, mimeType) {
   console.log("[Popup][LiveVoice] 🎙️ Processing recorded audio");
 
   chrome.runtime.sendMessage({
-    type: "TRANSCRIBE_AUDIO",
+    type: "TRANSCRIBE_AUDIO_CHUNK_LIVE",
     audioBase64: audioBase64,
     mimeType: mimeType,
     language: document.getElementById('default-lang')?.value || "en"
@@ -584,27 +602,62 @@ async function handleAudioRecordingCompleteLive(audioBase64, mimeType) {
 
 // Displays live transcription within the designated transcription area
 function displayLiveTranscript(transcript) {
-  // Locate the output area within the transcription container
   const outputArea = document.getElementById('transcription-output');
 
-  if (outputArea) {
-    // Create a new transcript entry with timestamp
-    const timestamp = new Date().toLocaleTimeString();
-    const entry = document.createElement('div');
-    entry.style.cssText = `
-      margin-bottom: 8px;
-      padding: 10px;
-      background: #ffffff;
-      border-radius: 6px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      font-family: monospace;
-    `;
-    entry.innerHTML = `<strong>${timestamp}:</strong> ${transcript}`;
-    outputArea.appendChild(entry);
-
-    // Auto-scroll to the latest entry
-    outputArea.scrollTop = outputArea.scrollHeight;
+  if (!outputArea) {
+    console.error('[Popup] Transcription output area not found');
+    return;
   }
+
+  // Check if there's an active session container
+  let activeSession = outputArea.querySelector('.active-session');
+
+  if (!activeSession) {
+    // Create new session container
+    const timestamp = new Date().toLocaleTimeString();
+    activeSession = document.createElement('div');
+    activeSession.className = 'active-session';
+    activeSession.style.cssText = `
+      margin-bottom: 12px;
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      color: white;
+    `;
+
+    const sessionHeader = document.createElement('div');
+    sessionHeader.style.cssText = `
+      font-size: 11px;
+      opacity: 0.9;
+      margin-bottom: 8px;
+      font-weight: 600;
+    `;
+    sessionHeader.textContent = `🔴 Live Session - Started at ${timestamp}`;
+
+    const transcriptText = document.createElement('div');
+    transcriptText.className = 'transcript-text';
+    transcriptText.style.cssText = `
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    `;
+
+    activeSession.appendChild(sessionHeader);
+    activeSession.appendChild(transcriptText);
+    outputArea.appendChild(activeSession);
+  }
+
+  // Append new transcript to existing session
+  const transcriptText = activeSession.querySelector('.transcript-text');
+  if (transcriptText) {
+    const currentText = transcriptText.textContent;
+    transcriptText.textContent = currentText + (currentText ? ' ' : '') + transcript;
+  }
+
+  // Auto-scroll to bottom
+  outputArea.scrollTop = outputArea.scrollHeight;
 }
 
 

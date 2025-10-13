@@ -25,10 +25,10 @@ function quickScrape() {
         'cookie', 'privacy', 'terms', 'conditions', 'copyright',
         'all rights reserved', 'login', 'sign up', 'subscribe'
       ];
-      
+
       return texts.filter(text => {
         if (text.length < minLength) return false;
-        
+
         const lowerText = text.toLowerCase();
         return !boilerplateWords.some(word => lowerText.includes(word));
       });
@@ -38,7 +38,7 @@ function quickScrape() {
     const extractMetaData = () => {
       const metas = Array.from(document.querySelectorAll('meta'));
       const metaData = {};
-      
+
       metas.forEach(meta => {
         const name = meta.getAttribute('name') || meta.getAttribute('property');
         const content = meta.getAttribute('content');
@@ -46,7 +46,7 @@ function quickScrape() {
           metaData[name] = cleanText(content);
         }
       });
-      
+
       return metaData;
     };
 
@@ -63,7 +63,7 @@ function quickScrape() {
     };
 
     const title = cleanText(document.title);
-    
+
     // Enhanced headings with hierarchy
     const headings = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6"))
       .map(h => ({
@@ -76,7 +76,7 @@ function quickScrape() {
     let paras = Array.from(document.querySelectorAll("p"))
       .map(p => cleanText(p.innerText))
       .filter(Boolean);
-    
+
     paras = filterMeaningfulContent(paras);
     paras = removeDuplicates(paras).slice(0, 30);
 
@@ -90,7 +90,7 @@ function quickScrape() {
         isExternal: !a.href.startsWith(window.location.origin),
         isNavigation: a.closest('nav, header, footer') !== null
       }));
-    
+
     const uniqueLinks = removeDuplicates(links, 'href').slice(0, 100);
 
     // Enhanced data structure
@@ -100,7 +100,7 @@ function quickScrape() {
       headings: headings.map(h => h.text), // Keep original format for compatibility
       paras,
       links: uniqueLinks.map(link => ({ text: link.text, href: link.href })), // Keep original format
-      
+
       // New enhanced fields
       enhanced: {
         meta: extractMetaData(),
@@ -133,7 +133,7 @@ function quickScrape() {
 
   } catch (err) {
     console.error("[Enhanced Scraper ❌ Error]:", err);
-    
+
     // Fallback to basic scraping
     try {
       const title = document.title;
@@ -172,7 +172,7 @@ class ContentVoiceRecorder {
   async startRecording() {
     try {
       console.log('[Content][Voice] 🎙 Requesting microphone access...');
-      
+
       // Check if we're in a secure context
       if (!window.isSecureContext) {
         throw new Error('Microphone requires secure context (HTTPS)');
@@ -182,14 +182,14 @@ class ContentVoiceRecorder {
         throw new Error('Microphone API not available in this context');
       }
 
-      this.stream = await navigator.mediaDevices.getUserMedia({ 
+      this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           sampleRate: 16000
         }
       });
-      
+
       this.recorder = new MediaRecorder(this.stream, {
         mimeType: 'audio/webm;codecs=opus'
       });
@@ -204,13 +204,13 @@ class ContentVoiceRecorder {
 
       this.recorder.onstop = async () => {
         console.log('[Content][Voice] 🔴 Recording stopped');
-        
+
         const blob = new Blob(this.chunks, { type: 'audio/webm;codecs=opus' });
-        
+
         // Convert to base64
         const arrayBuffer = await blob.arrayBuffer();
         const base64Audio = this.arrayBufferToBase64(arrayBuffer);
-        
+
         // Send to background script
         chrome.runtime.sendMessage({
           type: "AUDIO_RECORDING_COMPLETE",
@@ -224,9 +224,9 @@ class ContentVoiceRecorder {
       this.recorder.start();
       this.isRecording = true;
       console.log('[Content][Voice] 🟢 Recording started');
-      
+
       return { success: true };
-      
+
     } catch (error) {
       console.error('[Content][Voice] ❌ Microphone error:', error);
       this.cleanup();
@@ -235,70 +235,127 @@ class ContentVoiceRecorder {
   }
   async startLiveRecording() {
     try {
-      console.log('[Content][Voice] 🎙 Requesting live microphone access...');
-      
-      // Check if we're in a secure context
-      if (!window.isSecureContext) { 
-        throw new Error('Microphone requires secure context (HTTPS)');
-      }
+      console.log('[Content][LiveVoice] 🎙 Requesting live microphone access...');
 
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Microphone API not available in this context');
-      }
+      this.cleanup();
 
-      this.stream = await navigator.mediaDevices.getUserMedia({ 
+      const audioConstraints = {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          sampleRate: 16000
-        }
-      });
-      
-      this.recorder = new MediaRecorder(this.stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
-
-      this.chunks = [];
-
-      this.recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) {
-          this.chunks.push(e.data);
+          autoGainControl: true,
+          sampleRate: 16000,
+          channelCount: 1
         }
       };
 
-      this.recorder.onstop = async () => {
-        console.log('[Content][LiveVoice] 🔴 Recording stopped');
-        
-        const blob = new Blob(this.chunks, { type: 'audio/webm;codecs=opus' });
-        
-        // Convert to base64
-        const arrayBuffer = await blob.arrayBuffer();
-        const base64Audio = this.arrayBufferToBase64(arrayBuffer);
-        
-        // Send to background script
-        chrome.runtime.sendMessage({
-          type: "AUDIO_RECORDING_COMPLETE_LIVE",
-          audioBase64: base64Audio,
-          mimeType: blob.type
-        });
+      this.stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
 
-        this.cleanup();
-      };
+      const audioTracks = this.stream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        throw new Error('No audio tracks available');
+      }
 
-      this.recorder.start();
+      const mimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus'
+      ];
+
+      let selectedMimeType = 'audio/webm;codecs=opus';
+      for (const mimeType of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+          selectedMimeType = mimeType;
+          console.log('[Content][LiveVoice] Using MIME type:', mimeType);
+          break;
+        }
+      }
+
+      this.currentMimeType = selectedMimeType;
       this.isRecording = true;
-      console.log('[Content][LiveVoice] 🟢 Live Recording started');
-      
+      this.segmentCounter = 0;
+
+      // Start first segment
+      await this.startNewSegment();
+
+      // Start new segment every 5 seconds
+      this.segmentInterval = setInterval(() => {
+        if (this.isRecording) {
+          this.startNewSegment();
+        }
+      }, 5000);
+
+      console.log('[Content][LiveVoice] 🟢 Live Recording started with periodic segments');
+
       return { success: true };
-      
+
     } catch (error) {
-      console.error('[Content][Voice] ❌ Microphone error:', error);
+      console.error('[Content][LiveVoice] ❌ Microphone initialization error:', error);
       this.cleanup();
       return { success: false, error: error.message };
     }
   }
 
+  async startNewSegment() {
+    // Stop previous recorder if exists
+    if (this.recorder && this.recorder.state === 'recording') {
+      this.recorder.stop();
+    }
+
+    const recorderOptions = {
+      mimeType: this.currentMimeType,
+      audioBitsPerSecond: 128000
+    };
+
+    this.recorder = new MediaRecorder(this.stream, recorderOptions);
+    this.currentSegmentChunks = [];
+    this.segmentCounter++;
+    const currentSegment = this.segmentCounter;
+
+    console.log(`[Content][LiveVoice] 🎬 Starting segment ${currentSegment}`);
+
+    this.recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) {
+        this.currentSegmentChunks.push(e.data);
+      }
+    };
+
+    this.recorder.onstop = async () => {
+      if (this.currentSegmentChunks.length > 0) {
+        // Combine chunks from this segment
+        const segmentBlob = new Blob(this.currentSegmentChunks, { type: this.currentMimeType });
+        console.log(`[Content][LiveVoice] 📦 Segment ${currentSegment} complete:`, segmentBlob.size, 'bytes');
+
+        if (segmentBlob.size > 1000) {
+          const arrayBuffer = await segmentBlob.arrayBuffer();
+          const base64Audio = this.arrayBufferToBase64(arrayBuffer);
+
+          chrome.runtime.sendMessage({
+            type: "TRANSCRIBE_AUDIO_CHUNK_LIVE",
+            audioBase64: base64Audio,
+            mimeType: this.currentMimeType,
+            timestamp: Date.now(),
+            chunkNumber: currentSegment
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.error(`[Content][LiveVoice] ❌ Segment ${currentSegment} send error:`, chrome.runtime.lastError);
+            } else {
+              console.log(`[Content][LiveVoice] ✅ Segment ${currentSegment} delivered`);
+            }
+          });
+        }
+      }
+    };
+
+    this.recorder.start();
+  }
+
   stopRecording() {
+    if (this.segmentInterval) {
+      clearInterval(this.segmentInterval);
+      this.segmentInterval = null;
+    }
+
     if (this.recorder && this.isRecording) {
       this.recorder.stop();
       this.isRecording = false;
@@ -306,25 +363,52 @@ class ContentVoiceRecorder {
   }
 
   cleanup() {
+    console.log('[Content][LiveVoice] 🧹 Cleaning up resources...');
+
+    if (this.segmentInterval) {
+      clearInterval(this.segmentInterval);
+      this.segmentInterval = null;
+    }
+
+    if (this.recorder && this.recorder.state !== 'inactive') {
+      try {
+        this.recorder.stop();
+      } catch (e) {
+        console.warn('[Content][LiveVoice] Warning stopping recorder:', e);
+      }
+    }
+
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      this.stream.getTracks().forEach(track => {
+        try {
+          track.stop();
+          console.log('[Content][LiveVoice] Stopped track:', track.kind);
+        } catch (e) {
+          console.warn('[Content][LiveVoice] Warning stopping track:', e);
+        }
+      });
       this.stream = null;
     }
+
     this.recorder = null;
-    this.chunks = [];
+    this.currentSegmentChunks = [];
     this.isRecording = false;
+    this.segmentCounter = 0;
+    this.currentMimeType = null;
+
+    console.log('[Content][LiveVoice] 🧹 Cleanup completed');
   }
 
   arrayBufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
     let binary = '';
     const chunkSize = 0x8000;
-    
+
     for (let i = 0; i < bytes.length; i += chunkSize) {
       const chunk = bytes.subarray(i, i + chunkSize);
       binary += String.fromCharCode(...chunk);
     }
-    
+
     return btoa(binary);
   }
 }

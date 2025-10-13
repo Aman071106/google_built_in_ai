@@ -2,7 +2,210 @@
 
 let session = null;
 let translators = new Map();
+// Add at the top of background.js
+class AudioTranscriptionQueue {
+  constructor() {
+    this.queue = [];
+    this.processing = false;
+    this.lastRequestTime = 0;
+    this.MIN_REQUEST_INTERVAL = 500; // 500ms between requests
+  }
 
+  async add(request, sendResponse) {
+    return new Promise((resolve) => {
+      this.queue.push({ request, sendResponse, resolve });
+      this.processQueue();
+    });
+  }
+
+  async processQueue() {
+    if (this.processing || this.queue.length === 0) return;
+
+    this.processing = true;
+
+    // Rate limiting - ensure minimum time between requests
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
+      await new Promise(resolve =>
+        setTimeout(resolve, this.MIN_REQUEST_INTERVAL - timeSinceLastRequest)
+      );
+    }
+
+    const { request, sendResponse, resolve } = this.queue.shift();
+    this.lastRequestTime = Date.now();
+
+    try {
+      await this.processRequest(request, sendResponse);
+    } catch (error) {
+      console.error("[BG][LiveVoice] ❌ Queue processing error:", error);
+      sendResponse({ ok: false, error: error.message });
+    } finally {
+      this.processing = false;
+      resolve();
+      this.processQueue(); // Process next item
+    }
+  }
+
+  async processRequest(msg, sendResponse) {
+    console.log(`[BG][LiveVoice] 📝 Processing chunk ${msg.chunkNumber || 'unknown'}...`);
+
+    const lang = msg.language || "en";
+
+    // Enhanced validation
+    if (!msg.audioBase64 || msg.audioBase64.length < 500) {
+      console.error(`[BG][LiveVoice] ❌ Chunk ${msg.chunkNumber} - Audio data too small`);
+      sendResponse({ ok: false, error: "Audio data too small" });
+      return;
+    }
+
+    try {
+      // Reconstruct Blob from Base64
+      const byteChars = atob(msg.audioBase64);
+      const byteNumbers = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteNumbers[i] = byteChars.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+
+      console.log(`[BG][LiveVoice] 📊 Chunk ${msg.chunkNumber} - Data size: ${byteArray.length} bytes`);
+
+      // Try the original MIME type first
+      const mimeType = msg.mimeType || 'audio/webm';
+      const audioBlob = new Blob([byteArray], { type: mimeType });
+
+      console.log(`[BG][LiveVoice] 🎵 Chunk ${msg.chunkNumber} - Sending to Deepgram as ${mimeType}, size: ${audioBlob.size} bytes`);
+
+      const response = await fetch(`https://api.deepgram.com/v1/listen?language=${lang}&model=nova`, {
+        method: "POST",
+        headers: {
+          "Authorization": "Token ef2c8061467bd30d586456e55bfb751027e553fb",
+          "Content-Type": mimeType,
+        },
+        body: audioBlob
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[BG][LiveVoice] ❌ Chunk ${msg.chunkNumber} - Deepgram HTTP error:`, response.status, errorText);
+
+        // Don't throw error, just return empty transcript
+        sendResponse({ ok: true, transcript: "" });
+        return;
+      }
+
+      const result = await response.json();
+      console.log(`[BG][LiveVoice] ✅ Chunk ${msg.chunkNumber} - Deepgram response received`);
+
+      if (result.err_code) {
+        console.error(`[BG][LiveVoice] ❌ Chunk ${msg.chunkNumber} - Deepgram API error:`, result.err_msg);
+        sendResponse({ ok: true, transcript: "" }); // Return empty instead of error
+        return;
+      }
+
+      const transcript = result.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
+
+      if (transcript.trim()) {
+        console.log(`[BG][LiveVoice] 📝 Chunk ${msg.chunkNumber} transcript:`, transcript);
+
+        // Forward to popup
+        chrome.runtime.sendMessage({
+          type: "LIVE_TRANSCRIPT_CHUNK",
+          transcript: transcript,
+          timestamp: msg.timestamp,
+          chunkNumber: msg.chunkNumber
+        });
+      } else {
+        console.log(`[BG][LiveVoice] 🔇 Chunk ${msg.chunkNumber} - No speech detected`);
+      }
+
+      sendResponse({ ok: true, transcript });
+
+    } catch (error) {
+      console.error(`[BG][LiveVoice] ❌ Chunk ${msg.chunkNumber} - Processing failed:`, error);
+      // Return success with empty transcript to avoid breaking the queue
+      sendResponse({ ok: true, transcript: "" });
+    }
+  }
+
+  // Add WAV conversion fallback
+  async tryWavConversion(byteArray, lang, msg, sendResponse) {
+    try {
+      console.log("[BG][LiveVoice] 🎵 Converting to WAV format...");
+
+      // Create a simple WAV header (this is a basic conversion)
+      const wavBlob = this.createWavBlob(byteArray);
+
+      const response = await fetch(`https://api.deepgram.com/v1/listen?language=${lang}`, {
+        method: "POST",
+        headers: {
+          "Authorization": "Token ef2c8061467bd30d586456e55bfb751027e553fb",
+          "Content-Type": "audio/wav",
+        },
+        body: wavBlob
+      });
+
+      if (!response.ok) {
+        throw new Error(`WAV conversion also failed: HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      const transcript = result.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
+
+      if (transcript.trim()) {
+        console.log("[BG][LiveVoice] 📝 WAV chunk transcript:", transcript);
+        chrome.runtime.sendMessage({
+          type: "LIVE_TRANSCRIPT_CHUNK",
+          transcript: transcript,
+          timestamp: msg.timestamp
+        });
+      }
+
+      sendResponse({ ok: true, transcript });
+
+    } catch (wavError) {
+      console.error("[BG][LiveVoice] ❌ WAV conversion failed:", wavError);
+      sendResponse({ ok: false, error: "Audio format conversion failed" });
+    }
+  }
+
+  // Basic WAV blob creator (simplified)
+  createWavBlob(audioData) {
+    // This is a simplified WAV header - for production use a proper audio converter
+    const buffer = new ArrayBuffer(44 + audioData.length);
+    const view = new DataView(buffer);
+
+    // Write WAV header
+    const writeString = (offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + audioData.length, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, 16000, true);
+    view.setUint32(28, 16000 * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, audioData.length, true);
+
+    // Copy audio data
+    const uint8View = new Uint8Array(buffer);
+    uint8View.set(audioData, 44);
+
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+}
+
+// Initialize the queue
+const transcriptionQueue = new AudioTranscriptionQueue();
 // ---------------------- SESSION ----------------------
 async function ensureSession() {
   console.log("[BG] ensureSession() called");
@@ -516,17 +719,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         isRecording: voiceManager.isRecording
       });
       return false;
-    // case "AUDIO_RECORDING_COMPLETE":
-    //   console.log('[BG] Regular audio recording complete');
-    //   // Popup ko forward karo with same type
-    //   chrome.runtime.sendMessage({
-    //     type: "AUDIO_RECORDING_COMPLETE",
-    //     success: true,
-    //     audioBase64: msg.audioBase64,
-    //     mimeType: msg.mimeType
-    //   });
-    //   break;
+    case "AUDIO_RECORDING_COMPLETE":
+      console.log('[BG] Regular audio recording complete');
+      // Popup ko forward karo with same type
+      chrome.runtime.sendMessage({
+        type: "AUDIO_RECORDING_COMPLETE",
+        success: true,
+        audioBase64: msg.audioBase64,
+        mimeType: msg.mimeType
+      });
+      break;
+    case "TRANSCRIBE_AUDIO_CHUNK_LIVE":
+      console.log("[BG][LiveVoice] 📥 Received audio chunk, adding to queue...");
 
+      // Add to queue instead of processing immediately
+      transcriptionQueue.add(msg, sendResponse);
+
+      return true;
     case "AUDIO_RECORDING_COMPLETE_LIVE":
       console.log('[BG] Live audio recording complete');
       // Popup ko forward karo with LIVE type
