@@ -620,7 +620,7 @@ function displayLiveTranscript(transcript) {
     activeSession.style.cssText = `
       margin-bottom: 12px;
       padding: 12px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #d4d5dbff 0%, #eeecf1ff 100%);
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
       color: white;
@@ -629,6 +629,7 @@ function displayLiveTranscript(transcript) {
     const sessionHeader = document.createElement('div');
     sessionHeader.style.cssText = `
       font-size: 11px;
+      color:black;
       opacity: 0.9;
       margin-bottom: 8px;
       font-weight: 600;
