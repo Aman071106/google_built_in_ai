@@ -5,7 +5,7 @@
   "description": "AI assistant: STT, translation, sentiment-aware replies and summarization",
   "permissions": [
     "storage",
-    "activeTab", 
+    "activeTab",
     "scripting",
     "tabs",
     "contentSettings"
@@ -27,14 +27,23 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ]
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["popup.html", "libs/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "popup.html",
+        "libs/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "icons": {

@@ -4,6 +4,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize language detector first
   await initLanguageDetector();
   loadUserPreferences();
+  initializeImageUpload();
+  testBackgroundCommunication();
+  addSummarizationStyles();
+  initializeSummarization();
 
   // --- 1. Tab switching logic ---
   const tabs = document.querySelectorAll('.tab');
@@ -355,7 +359,7 @@ function initializeVoiceRecording() {
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log("Popup to rag")
     console.log("[POPUP]", request);
-     
+
     switch (request.type) {
       case "AUDIO_RECORDING_COMPLETE":
         log('📤 Received audio from background');
@@ -1618,3 +1622,427 @@ EmbeddingTextProcessor.embeddingCache = new Map();
 
 
 
+function initializeImageUpload() {
+  const imageUploadBtn = document.getElementById('image-upload-btn');
+  const imageFileInput = document.getElementById('image-file-input');
+
+  if (!imageUploadBtn || !imageFileInput) {
+    console.error('Image upload elements not found');
+    return;
+  }
+
+  imageUploadBtn.addEventListener('click', () => {
+    imageFileInput.click();
+  });
+
+  imageFileInput.addEventListener('change', handleImageUpload);
+}
+
+async function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    alert('Please select an image file');
+    return;
+  }
+
+  // Validate file size (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Image size should be less than 5MB');
+    return;
+  }
+
+  console.log('[Popup] 📸 Image selected:', file.name, file.type, file.size);
+
+  try {
+    // Create preview message
+    const previewMessage = createImagePreviewMessage(file);
+
+    // Process the image with AI
+    await processImageQuery(file);
+
+  } catch (error) {
+    console.error('[Popup] ❌ Image upload failed:', error);
+    window.createMessageElement('❌ Failed to process image. Please try again.', 'assistant');
+  } finally {
+    // Reset file input
+    event.target.value = '';
+  }
+}
+
+function createImagePreviewMessage(file) {
+  const messageElement = document.createElement('div');
+  messageElement.classList.add('message', 'user');
+
+  const messageBubble = document.createElement('div');
+  messageBubble.classList.add('message-bubble');
+
+  const imageElement = document.createElement('img');
+  imageElement.classList.add('message-image');
+  imageElement.src = URL.createObjectURL(file);
+  imageElement.alt = 'Uploaded image';
+
+  const textElement = document.createElement('div');
+  textElement.classList.add('message-text');
+  textElement.textContent = 'Analyzing this image...';
+
+  const timeElement = document.createElement('div');
+  timeElement.classList.add('message-time');
+  timeElement.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  messageBubble.appendChild(imageElement);
+  messageBubble.appendChild(textElement);
+  messageBubble.appendChild(timeElement);
+  messageElement.appendChild(messageBubble);
+
+  const chatMessages = document.getElementById('chat-messages');
+  chatMessages.appendChild(messageElement);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  return { messageElement, textElement };
+}
+
+async function processImageQuery(imageFile) {
+  const thinkingMsg = window.createMessageElement('🔍 Analyzing image with page context...', 'assistant');
+
+  try {
+    // Check if Prompt API supports images
+    if (typeof LanguageModel === 'undefined') {
+      throw new Error('AI features not available in this browser');
+    }
+
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) throw new Error('No active tab found.');
+
+    let pageContext = 'No page context available';
+    let pageTitle = tab.title || 'Current Page';
+
+    try {
+      const scrapedRes = await chrome.tabs.sendMessage(tab.id, { type: 'SCRAPE_PAGE' });
+      console.log("[POPUP] Scraped data in image function", scrapedRes);
+      if (scrapedRes?.ok && scrapedRes.data) {
+        const scrapedData = scrapedRes.data; // DEFINE scrapedData here
+        pageTitle = scrapedData.title || pageTitle;
+        const structuredText = jsonToStructuredText(scrapedData);
+        const ragManager = new EnhancedRAGManager();
+        await ragManager.processPageContent(structuredText, tab.url, { title: pageTitle });
+        const relevantChunks = await ragManager.retrieveRelevantChunks('image content description', tab.url, 2);
+        if (relevantChunks.length > 0) {
+          pageContext = relevantChunks.map(chunk => chunk.text).join('\n\n');
+        }
+      }
+    } catch (scrapeError) {
+      console.warn('[Popup] Could not get page context:', scrapeError);
+    }
+
+    const imageBase64 = await fileToBase64(imageFile);
+
+    console.log('[POPUP] Sending image query to background...');
+    console.log('ASK_IMAGE_QUERY');
+    const res = await chrome.runtime.sendMessage({
+      type: 'ASK_IMAGE_QUERY',  // Make sure this matches exactly
+      imageBase64: imageBase64,
+      imageType: imageFile.type,
+      pageContext: pageContext,
+      pageTitle: pageTitle,
+      pageUrl: tab.url
+    });
+
+    console.log('[POPUP] Response from background:', res);
+
+    if (res?.ok) {
+      const messageText = thinkingMsg.querySelector('.message-text');
+      const answer = res.answer;
+
+      // Check if answer contains markdown
+      if (answer.includes('**') || answer.includes('*') || answer.includes('#')) {
+        messageText.innerHTML = DOMPurify.sanitize(marked.parse(answer));
+      } else {
+        messageText.textContent = answer;
+      }
+
+      window.latestAIResponse = answer;
+      const cleanAnswer = removeMarkdown(answer);
+      speakTextWithDeepgram(cleanAnswer);
+
+    } else {
+      throw new Error(res?.error || 'Image analysis failed');
+    }
+
+  } catch (err) {
+    console.error('[Popup] ❌ Image processing error:', err);
+    thinkingMsg.querySelector('.message-text').textContent =
+      `⚠️ ${err.message}. Please ensure you're using Chrome with Gemini Nano support for images.`;
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      // Remove the data:image/...;base64, prefix
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = error => reject(error);
+  });
+}
+
+// Test function to verify background communication
+async function testBackgroundCommunication() {
+  console.log('[Popup] 🧪 Testing background communication...');
+
+  try {
+    const testResponse = await chrome.runtime.sendMessage({
+      type: 'TEST_COMMUNICATION',
+      test: 'hello'
+    });
+    console.log('[Popup] Background test response:', testResponse);
+  } catch (error) {
+    console.error('[Popup] Background test failed:', error);
+  }
+}
+
+// Call this in your DOMContentLoaded to test
+// testBackgroundCommunication();
+
+
+// Initialize summarization tab
+function initializeSummarization() {
+  const summarizeBtn = document.getElementById('summarize-btn');
+  const clearBtn = document.getElementById('clear-summary-btn');
+  const summaryInput = document.getElementById('summary-input');
+  const summaryResult = document.getElementById('summary-result');
+  const summarizeStatus = document.getElementById('summarize-status');
+
+  if (!summarizeBtn) {
+    console.log('[Popup] Summarize elements not found');
+    return;
+  }
+
+  console.log('[Popup] Initializing summarization tab...');
+
+  summarizeBtn.addEventListener('click', handleSummarize);
+  clearBtn.addEventListener('click', handleClearSummary);
+
+  // Test summarizer availability on tab focus
+  document.querySelector('.tab[data-tab="summarize"]')?.addEventListener('click', testSummarizerAvailability);
+}
+
+async function testSummarizerAvailability() {
+  console.log('[Popup] Testing summarizer availability...');
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'TEST_COMMUNICATION',
+      test: 'summarizer-check'
+    });
+
+    if (response?.ok) {
+      console.log('[Popup] Background communication OK');
+      updateSummarizeStatus('Background service ready', 'success');
+    }
+  } catch (error) {
+    console.error('[Popup] Background test failed:', error);
+    updateSummarizeStatus('Background service unavailable', 'error');
+  }
+}
+
+async function handleSummarize() {
+  console.log('[Popup] Handle summarize clicked');
+
+  const textInput = document.getElementById('summary-input');
+  const summaryType = document.getElementById('summary-type');
+  const summaryLength = document.getElementById('summary-length');
+  const summaryFormat = document.getElementById('summary-format');
+  const summaryContext = document.getElementById('summary-context');
+  const summaryResult = document.getElementById('summary-result');
+
+  const text = textInput.value.trim();
+
+  if (!text) {
+    alert('Please enter some text to summarize');
+    return;
+  }
+
+  if (text.length < 50) {
+    alert('Please enter at least 50 characters for meaningful summarization');
+    return;
+  }
+
+  console.log(`[Popup] Summarizing text: ${text.length} chars`);
+  updateSummarizeStatus('Starting summarization...', 'processing');
+
+  const options = {
+    type: summaryType.value,
+    length: summaryLength.value,
+    format: summaryFormat.value,
+    sharedContext: summaryContext.value || undefined
+  };
+
+  console.log('[Popup] Summary options:', options);
+
+  try {
+    updateSummarizeStatus('Processing with Gemini Nano...', 'processing');
+    summaryResult.innerHTML = '<em>Generating summary... This may take a moment.</em>';
+
+    const response = await chrome.runtime.sendMessage({
+      type: 'SUMMARIZE_TEXT',
+      text: text,
+      options: options,
+      context: summaryContext.value || ''
+    });
+
+    console.log('[Popup] Summarization response:', response);
+
+    if (response.ok) {
+      const summary = response.summary;
+      const metadata = response.metadata;
+
+      console.log(`[Popup] Summary generated: ${summary.length} chars`);
+      console.log(`[Popup] Compression: ${metadata.compressionRatio}% reduction`);
+
+      // Display the summary
+      if (options.format === 'markdown' && (summary.includes('**') || summary.includes('*') || summary.includes('#'))) {
+        summaryResult.innerHTML = DOMPurify.sanitize(marked.parse(summary));
+      } else {
+        summaryResult.textContent = summary;
+      }
+
+      updateSummarizeStatus(
+        `✅ Summary generated! Reduced by ${metadata.compressionRatio}% (${metadata.originalLength} → ${metadata.summaryLength} chars)`,
+        'success'
+      );
+
+      // Store for voice playback
+      window.latestSummary = summary;
+
+    } else {
+      throw new Error(response.error || 'Unknown error during summarization');
+    }
+
+  } catch (error) {
+    console.error('[Popup] Summarization failed:', error);
+    summaryResult.innerHTML = `<span style="color: red;">Error: ${error.message}</span>`;
+    updateSummarizeStatus(`❌ Failed: ${error.message}`, 'error');
+  }
+}
+
+function handleClearSummary() {
+  console.log('[Popup] Clearing summary inputs');
+
+  document.getElementById('summary-input').value = '';
+  document.getElementById('summary-context').value = '';
+  document.getElementById('summary-result').innerHTML = 'Your summary will appear here...';
+  updateSummarizeStatus('Ready to summarize', 'ready');
+}
+
+function updateSummarizeStatus(message, type = 'ready') {
+  const statusElement = document.getElementById('summarize-status');
+  if (!statusElement) return;
+
+  statusElement.textContent = message;
+
+  // Update color based on type
+  statusElement.style.color =
+    type === 'success' ? 'green' :
+      type === 'error' ? 'red' :
+        type === 'processing' ? 'blue' : '#666';
+}
+
+// Add summarization-specific CSS (optional)
+function addSummarizationStyles() {
+  const styles = `
+    .summarize-container {
+      padding: 15px;
+    }
+    .summarize-controls {
+      display: flex;
+      gap: 15px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+    .summarize-option {
+      flex: 1;
+      min-width: 120px;
+    }
+    .summarize-option label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .summarize-option select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .summarize-input-section {
+      margin: 15px 0;
+    }
+    .summarize-input-section label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .summarize-actions {
+      margin: 20px 0;
+      display: flex;
+      gap: 10px;
+    }
+    .summarize-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .summarize-btn.primary {
+      background: #4285f4;
+      color: white;
+    }
+    .summarize-btn.secondary {
+      background: #f1f3f4;
+      color: #333;
+    }
+    .summarize-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  `;
+
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = styles;
+  document.head.appendChild(styleSheet);
+}
+
+
+
+// Enhanced logging for summarization
+function logSummarizationStep(step, data = null) {
+  const timestamp = new Date().toISOString();
+  const logEntry = {
+    timestamp,
+    step,
+    data,
+    userAgent: navigator.userAgent,
+    textLength: data?.text?.length || document.getElementById('summary-input')?.value.length || 0
+  };
+
+  console.log(`[Summarize][${step}]`, data || '');
+
+  // Store in window for debugging
+  if (!window.summarizeLogs) {
+    window.summarizeLogs = [];
+  }
+  window.summarizeLogs.push(logEntry);
+
+  // Keep only last 50 logs
+  if (window.summarizeLogs.length > 50) {
+    window.summarizeLogs.shift();
+  }
+}

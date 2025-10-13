@@ -29,7 +29,9 @@
   <!-- Navigation Tabs -->
   <div class="nav-tabs">
     <button class="tab active" data-tab="chat">Chat</button>
-    <button class="tab" data-tab="meetings">Task Summarization</button>
+    <button class="tab" data-tab="meetings">Live Transcription</button>
+    <button class="tab" data-tab="summarize">Privacy</button>
+
     <button class="tab" data-tab="settings">Settings</button>
   </div>
 
@@ -65,13 +67,19 @@
 
           <!-- 🔊 Voice reply button -->
           <button class="icon-btn" id="voice-reply-btn" title="Play AI Voice">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="black">
               <path
                 d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z">
               </path>
             </svg>
           </button>
-
+          <button class="icon-btn" id="image-upload-btn" title="Upload Image" style="color: black;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
+            </svg>
+          </button>
+          <input type="file" id="image-file-input" accept="image/*" style="display: none;">
           <button class="send-btn" id="send-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -97,18 +105,14 @@
           <button class="meeting-btn primary" id="start-meeting-btn">
             🎤 Start Meeting
           </button>
-          <!-- <button class="meeting-btn secondary" id="stop-meeting-btn" disabled>
-            ⏹️ Stop Meeting
-          </button> -->
-          <button class="meeting-btn" id="summarize-meeting-btn" disabled>
-            📝 Summarize
-          </button>
-        </div> 
+
+
+        </div>
 
         <div class="transcription-container">
           <div class="transcription-header">
             <h4>Live Transcription</h4>
-            
+
           </div>
           <div class="transcription-output" id="transcription-output">
             <!-- Transcription will appear here -->
@@ -173,6 +177,72 @@
 
     <!-- Sentiment Tab -->
 
+    <div class="tab-content" id="summarize-content">
+      <div class="summarize-container">
+        <div class="summarize-header">
+          <h3>Text Summarization</h3>
+          <p>Summarize any text using Gemini Nano</p>
+        </div>
+
+        <div class="summarize-controls">
+          <div class="summarize-option">
+            <label>Summary Type:</label>
+            <select id="summary-type">
+              <option value="key-points">Key Points</option>
+              <option value="tldr">TL;DR</option>
+              <option value="teaser">Teaser</option>
+              <option value="headline">Headline</option>
+            </select>
+          </div>
+
+          <div class="summarize-option">
+            <label>Length:</label>
+            <select id="summary-length">
+              <option value="short">Short</option>
+              <option value="medium">Medium</option>
+              <option value="long">Long</option>
+            </select>
+          </div>
+
+          <div class="summarize-option">
+            <label>Format:</label>
+            <select id="summary-format">
+              <option value="markdown">Markdown</option>
+              <option value="plain-text">Plain Text</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="summarize-input-section">
+          <label>Additional Context (Optional):</label>
+          <input type="text" id="summary-context" placeholder="E.g., This is a technical article about AI..."
+            style="width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+
+        <div class="summarize-input-section">
+          <label>Text to Summarize:</label>
+          <textarea id="summary-input" placeholder="Paste your text here..." rows="10"
+            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+        </div>
+
+        <div class="summarize-actions">
+          <button class="summarize-btn primary" id="summarize-btn">📝 Generate Summary</button>
+          <button class="summarize-btn secondary" id="clear-summary-btn">🗑️ Clear</button>
+        </div>
+
+        <div class="summarize-output">
+          <label>Summary Result:</label>
+          <div id="summary-result"
+            style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin-top: 10px; min-height: 100px; background: #f9f9f9;">
+            Your summary will appear here...
+          </div>
+        </div>
+
+        <div class="summarize-status" id="summarize-status" style="margin-top: 10px; font-size: 12px; color: #666;">
+          Ready to summarize
+        </div>
+      </div>
+    </div>
 
     <!-- Settings Tab -->
     <div class="tab-content" id="settings-content">

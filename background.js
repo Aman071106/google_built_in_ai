@@ -2,6 +2,125 @@
 
 let session = null;
 let translators = new Map();
+let summarizer = null;
+
+
+async function ensureSummarizer(options = {}) {
+  console.log("[BG] ensureSummarizer() called with options:", options);
+
+  if (summarizer) {
+    console.log("[BG] Using cached summarizer");
+    return summarizer;
+  }
+
+  if (typeof Summarizer === "undefined") {
+    throw new Error("Summarizer API not available — requires Chrome with Gemini Nano enabled.");
+  }
+
+  console.log("[BG] Checking Summarizer availability...");
+  const availability = await Summarizer.availability();
+  console.log("[BG] Summarizer availability:", availability);
+
+  if (availability === "unavailable") {
+    throw new Error("Summarizer not available");
+  }
+
+  // Default options
+  const summarizerOptions = {
+    type: options.type || 'key-points',
+    format: options.format || 'markdown',
+    length: options.length || 'medium',
+    sharedContext: options.sharedContext || '',
+    monitor(m) {
+      m.addEventListener("downloadprogress", (e) => {
+        console.log(`[BG] Summarizer downloaded ${(e.loaded * 100).toFixed(1)}%`);
+      });
+    },
+  };
+
+  console.log("[BG] Creating summarizer with options:", summarizerOptions);
+  summarizer = await Summarizer.create(summarizerOptions);
+
+  console.log("[BG] Summarizer created successfully!");
+  return summarizer;
+}
+
+async function handleSummarizeText(request, sender, sendResponse) {
+  console.log("[BG] handleSummarizeText() called");
+  console.log("[BG] Text length:", request.text?.length);
+  console.log("[BG] Options:", request.options);
+
+  try {
+    const summarizerInstance = await ensureSummarizer(request.options);
+
+    console.log("[BG] Summarizer ready, processing text...");
+
+    const summary = await summarizerInstance.summarize(request.text, {
+      context: request.context || ''
+    });
+
+    console.log("[BG] Summary generated successfully");
+    console.log("[BG] Summary length:", summary.length);
+    console.log("[BG] Summary preview:", summary.substring(0, 100) + "...");
+
+    sendResponse({
+      ok: true,
+      summary: summary,
+      metadata: {
+        originalLength: request.text.length,
+        summaryLength: summary.length,
+        compressionRatio: ((request.text.length - summary.length) / request.text.length * 100).toFixed(1)
+      }
+    });
+
+  } catch (error) {
+    console.error("[BG] Summarization failed:", error);
+    sendResponse({
+      ok: false,
+      error: error.message,
+      suggestion: "Make sure you're using Chrome with Gemini Nano support and have sufficient storage space"
+    });
+  }
+}
+
+async function handleStreamingSummarize(request, sender, sendResponse) {
+  console.log("[BG] handleStreamingSummarize() called");
+
+  try {
+    const summarizerInstance = await ensureSummarizer(request.options);
+
+    console.log("[BG] Starting streaming summarization...");
+    const stream = summarizerInstance.summarizeStreaming(request.text, {
+      context: request.context || ''
+    });
+
+    let fullSummary = '';
+    for await (const chunk of stream) {
+      console.log("[BG] Streaming chunk received:", chunk.length, "chars");
+      fullSummary += chunk;
+
+      // Send progress updates if needed
+      chrome.runtime.sendMessage({
+        type: "SUMMARY_STREAM_UPDATE",
+        chunk: chunk,
+        progress: (fullSummary.length / request.text.length * 100).toFixed(1)
+      });
+    }
+
+    console.log("[BG] Streaming summarization complete");
+    sendResponse({
+      ok: true,
+      summary: fullSummary,
+      streamed: true
+    });
+
+  } catch (error) {
+    console.error("[BG] Streaming summarization failed:", error);
+    sendResponse({ ok: false, error: error.message });
+  }
+}
+
+
 // Add at the top of background.js
 class AudioTranscriptionQueue {
   constructor() {
@@ -328,6 +447,133 @@ Your task begins now — analyze the given webpage content and respond only usin
   return session;
 }
 
+async function handleImageQuery(request, sender, sendResponse) {
+  console.log('[BG] 🖼️ Starting image query processing');
+
+  try {
+    // Validate request
+    if (!request.imageBase64) {
+      throw new Error('No image data provided');
+    }
+
+    const sess = await ensureSession();
+    const userLanguage = await getUserLanguage();
+
+    console.log('[BG] Converting base64 to blob...');
+    // Convert base64 back to blob for the Prompt API
+    const byteChars = atob(request.imageBase64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNumbers[i] = byteChars.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const imageBlob = new Blob([byteArray], { type: request.imageType });
+
+    console.log('[BG] Image blob created:', imageBlob.size, 'bytes');
+    console.log('[BG] Page context length:', request.pageContext?.length || 0, 'chars');
+    console.log('[BG] Page title:', request.pageTitle);
+
+    // Create the prompt for multimodal input
+    const prompt = [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            value: `Please analyze this image in the context of the current webpage.
+
+WEBPAGE CONTEXT:
+Title: ${request.pageTitle}
+URL: ${request.pageUrl}
+Content: ${request.pageContext || 'No specific context available'}
+
+Please:
+1. Describe what you see in the image
+2. Explain how it relates to the webpage content
+3. Provide any insights about the image
+4. Keep your response concise but informative
+
+If the image doesn't seem related to the webpage, just analyze the image itself and mention that no clear connection to the webpage was found.`
+          },
+          {
+            type: "image",
+            value: imageBlob
+          }
+        ]
+      }
+    ];
+
+    console.log('[BG] Sending multimodal prompt to Gemini Nano...');
+
+    // Check if the session supports multimodal
+    try {
+      const result = await sess.prompt(prompt, {
+        expectedInputs: [
+          {
+            type: "text",
+            languages: ["en", "en"]
+          },
+          {
+            type: "image"
+          }
+        ],
+        expectedOutputs: [
+          { type: "text", languages: ["en"] }
+        ]
+      });
+
+      console.log('[BG] ✅ Image analysis complete, response length:', result.length);
+
+      let finalAnswer = result;
+
+      // Translate if needed
+      if (userLanguage !== 'en') {
+        console.log('[BG] Translating image analysis to user language...');
+        finalAnswer = await translateText(result, 'en', userLanguage, true);
+      }
+
+      sendResponse({
+        ok: true,
+        answer: finalAnswer,
+        imageProcessed: true
+      });
+
+    } catch (apiError) {
+      console.error('[BG] ❌ Gemini Nano API error:', apiError);
+
+      // Fallback: Try without multimodal options
+      try {
+        console.log('[BG] 🔄 Trying fallback without multimodal options...');
+        const result = await sess.prompt(prompt);
+
+        let finalAnswer = result;
+        if (userLanguage !== 'en') {
+          finalAnswer = await translateText(result, 'en', userLanguage, true);
+        }
+
+        sendResponse({
+          ok: true,
+          answer: finalAnswer,
+          imageProcessed: true,
+          usedFallback: true
+        });
+
+      } catch (fallbackError) {
+        console.error('[BG] ❌ Fallback also failed:', fallbackError);
+        throw new Error(`Gemini Nano cannot process images: ${fallbackError.message}`);
+      }
+    }
+
+  } catch (e) {
+    console.error('[BG] ❌ Image query failed:', e);
+    sendResponse({
+      ok: false,
+      error: e.message,
+      suggestion: 'Make sure you are using Chrome Canary with Gemini Nano multimodal support enabled'
+    });
+  }
+}
+
 // ---------------------- TRANSLATOR ----------------------
 async function ensureTranslator(sourceLang, targetLang, forceNew = false) {
   const key = `${sourceLang}-${targetLang}`;
@@ -633,6 +879,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   console.log("[BG] Received message type:", msg.type);
 
   switch (msg.type) {
+    case "TEST_COMMUNICATION":
+      console.log('[BG] ✅ Test message received:', msg.test);
+      sendResponse({ ok: true, received: msg.test, timestamp: Date.now() });
+      break;
     case "ASK_QUERY_WITH_CONTEXT":
       handleRAGQuery(msg, sender, sendResponse);
       break;
@@ -746,6 +996,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         mimeType: msg.mimeType
       });
       break;
+    case "ASK_IMAGE_QUERY":
+      console.log('[BG] 📨 Received ASK_IMAGE_QUERY message');
+      handleImageQuery(msg, sender, sendResponse);
+      return true; // Important: keep the message channel open
+    // Add to chrome.runtime.onMessage.addListener switch statement
+    case "SUMMARIZE_TEXT":
+      handleSummarizeText(msg, sender, sendResponse);
+      return true;
+
+    case "SUMMARIZE_STREAMING":
+      handleStreamingSummarize(msg, sender, sendResponse);
+      return true;
     default:
       console.warn("[BG] Unknown message type:", msg.type);
       sendResponse({ ok: false, error: "Unknown message type" });
