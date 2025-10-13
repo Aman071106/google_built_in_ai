@@ -515,8 +515,7 @@ cd IT_Hackathon
 
 Milo Mate represents a **paradigm shift in customer service AI**:  
 
-✨ **Privacy-First:** All core features run on-device  
-✨ **Cost-Effective:** ~$345/agent/month savings vs traditional SaaS  
+✨ **Privacy-First:** All core features run on-device    
 ✨ **Universal:** Works on any website, no integration required  
 ✨ **Fast:** Sub-second response times  
 ✨ **Intelligent:** RAG + multimodal AI for accurate, grounded responses  
