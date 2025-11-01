@@ -1,7 +1,9 @@
 ## 🌐 Milo Mate — One stop AI-Powered Multilingual Customer Service Assistant  
+### 🏆 Google Chrome Built-in AI Challenge  
+**Goal:** Create privacy-first AI tools leveraging **Gemini Nano** and Chrome’s on-device intelligence.
 
-### 🏆IT Hackathon Challenge  
-*Goal:* Create AI-powered tools that enhance efficiency, personalize customer interactions, and boost overall business performance.  
+[![Watch the video](assets/thumbnail.png)](https://youtu.be/zW9Vj_TkhHU)
+
 
 ---
 
@@ -85,7 +87,7 @@
 
 
 ## 📁Project Structure
-
+```
 milo-mate/
 │
 ├── manifest.json              # Extension configuration & permissions
@@ -110,7 +112,7 @@ milo-mate/
 └── libs/
     ├── marked.min.js         # Markdown rendering
     └── purify.min.js         # XSS protection
-
+```
 
 
 # 🚀 Issues Addressed - Architecture Breakdown
@@ -454,10 +456,10 @@ Manual summarization is *slow, inconsistent, and error-prone*, often missing cri
 ### 📦 Installation  
 
 ###  Clone the repository
-bash
-git clone https://github.com/Vansh-Pandey/IT_Hackathon.git
-cd IT_Hackathon
-
+```bash
+git clone https://github.com/Aman071106/google_built_in_ai.git
+cd google_built_in_ai
+```
 ### 📦 Load Extension in Chrome
 
 1. Open chrome://extensions/  
