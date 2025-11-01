@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Milo Mate",
   "version": "0.1.0",
-  "description": "AI assistant: STT, translation, sentiment-aware replies and summarization",
+  "description": "AI assist: STT, translation, sentiment-aware replies and summarization",
   "permissions": [
     "storage",
     "activeTab",
